@@ -159,6 +159,54 @@
     }
     .blink-dot { animation: blink-dot 1s ease-in-out infinite; }
 
+    /* ── Pet hero glow pulse ── */
+    @keyframes glow-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.08); opacity: 0.8; }
+    }
+    .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
+
+    /* ── Speech bubble pop ── */
+    @keyframes bubble-pop {
+      0% { opacity: 0; transform: scale(0.6) translateY(8px); }
+      60% { opacity: 1; transform: scale(1.05) translateY(-2px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .bubble-pop { animation: bubble-pop 0.5s var(--ease-out) forwards; }
+
+    /* ── CTA breathe ── */
+    @keyframes cta-breathe {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(212,146,58,0.3); }
+      50% { box-shadow: 0 0 0 14px rgba(212,146,58,0); }
+    }
+    .cta-breathe { animation: cta-breathe 2.5s ease-in-out infinite; }
+
+    /* ── Voice bar bounce ── */
+    @keyframes voice-bar {
+      0%, 100% { height: 6px; }
+      50% { height: var(--bar-h, 20px); }
+    }
+    .voice-bar {
+      width: 3.5px;
+      border-radius: 3px;
+      background: #fff;
+      animation: voice-bar var(--bar-d, 0.8s) ease-in-out infinite;
+      animation-delay: var(--bar-delay, 0s);
+    }
+
+    /* ── Paw float ── */
+    @keyframes paw-drift {
+      0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.12; }
+      50% { transform: translateY(-6px) rotate(8deg); opacity: 0.2; }
+    }
+
+    /* ── Staggered slide up ── */
+    .slide-up-1 { animation: slide-up 0.5s var(--ease-out) 0.05s forwards; opacity: 0; }
+    .slide-up-2 { animation: slide-up 0.5s var(--ease-out) 0.12s forwards; opacity: 0; }
+    .slide-up-3 { animation: slide-up 0.5s var(--ease-out) 0.2s forwards; opacity: 0; }
+    .slide-up-4 { animation: slide-up 0.5s var(--ease-out) 0.28s forwards; opacity: 0; }
+    .slide-up-5 { animation: slide-up 0.5s var(--ease-out) 0.36s forwards; opacity: 0; }
+
     /* ── Toast slide ── */
     @keyframes toast-in {
       from { opacity: 0; transform: translateY(16px) scale(0.95); }
@@ -1299,12 +1347,20 @@
 
       /* 宠物心情（模拟数据） */
       const moods = [
-        { mood: '开心', emoji: '😊', text: `${currentPet.name}今天心情不错~`, bg: 'linear-gradient(135deg, var(--honey-soft) 0%, var(--cream) 50%, var(--sage-soft) 100%)' },
-        { mood: '想你', emoji: '🥰', text: `${currentPet.name}一直在等你回来`, bg: 'linear-gradient(135deg, var(--coral-soft) 0%, var(--cream) 50%, var(--honey-soft) 100%)' },
-        { mood: '慵懒', emoji: '😴', text: `${currentPet.name}正在享受午后时光`, bg: 'linear-gradient(135deg, var(--sky-soft) 0%, var(--cream) 50%, var(--sage-soft) 100%)' },
+        { mood: '开心', emoji: '😊', text: `在等你回来~`, bubble: '今天也要一起玩呀！' },
+        { mood: '想你', emoji: '🥰', text: `一直在想你`, bubble: '你去哪里了嘛...' },
+        { mood: '慵懒', emoji: '😴', text: `在晒太阳呢`, bubble: '嗯...好舒服..zzZ' },
       ];
       const moodIndex = useMemo(() => Math.floor(Math.random() * moods.length), []);
       const currentMood = moods[moodIndex];
+
+      /* 心情对应的背景渐变色 */
+      const moodGradients = [
+        ['#FFE8B0', '#FFDAB0', '#FFD0C0'],
+        ['#FFD0C0', '#FFC8D0', '#FFD8E0'],
+        ['#C8E0F0', '#D0E8E0', '#E0F0E0'],
+      ];
+      const gradient = moodGradients[moodIndex];
 
       /* 每日小知识 */
       const tips = [
@@ -1325,163 +1381,136 @@
       };
 
       return (
-        <div className="min-h-screen flex flex-col fade-in" style={{ background: 'var(--parchment)' }}>
-          {/* ── Header ── */}
-          <header className="px-5 pt-4 pb-1 safe-top">
+        <div className="min-h-screen flex flex-col fade-in relative" style={{ background: 'var(--parchment)' }}>
+          {/* 全屏柔和渐变背景 */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse at 50% 35%, ${gradient[0]}55 0%, ${gradient[1]}22 45%, transparent 75%)`,
+            }}
+          />
+
+          {/* ── Header（透明叠在渐变上） ── */}
+          <header className="relative z-10 px-6 pt-6 pb-3 safe-top slide-up-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold" style={{ color: 'var(--bark-muted)' }}>{timeGreeting} 👋</p>
-                <h1 className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--bark)', letterSpacing: '-0.02em' }}>
+                <p className="text-base font-semibold" style={{ color: 'var(--bark-muted)' }}>{timeGreeting} 👋</p>
+                <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--bark)', letterSpacing: '-0.02em' }}>
                   PetVoice
                 </h1>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2.5">
                 {pets.map((pet, i) => (
                   <button
                     key={i}
                     onClick={() => onSelectPet(i)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${
-                      selectedPet === i ? 'ring-2 ring-honey/60 ring-offset-1' : ''
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      selectedPet === i ? 'ring-2 ring-honey/60 ring-offset-2' : ''
                     }`}
                     style={{
-                      background: selectedPet === i ? 'var(--honey-soft)' : 'rgba(61,43,31,0.04)',
+                      background: selectedPet === i ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)',
                       transitionDuration: 'var(--duration-fast)',
                     }}
                   >
-                    <span className="text-lg">{pet.emoji}</span>
+                    <span className="text-2xl">{pet.emoji}</span>
                   </button>
                 ))}
-                <button
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
-                  style={{ color: 'var(--bark-faint)', transitionDuration: 'var(--duration-fast)' }}
-                >
-                  <Icons.bell size={18} />
-                </button>
               </div>
             </div>
           </header>
 
-          {/* ── Scrollable Content ── */}
-          <div className="flex-1 overflow-y-auto px-5 pt-4 pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* ── 宠物沉浸区 — 铺满整屏，上下两区 ── */}
+          <div className="flex-1 relative flex flex-col px-5 pb-20">
 
-            {/* 🐾 Pet Mood Card — Hero */}
-            <div
-              className="rounded-3xl p-6 mb-5 relative overflow-hidden slide-up"
-              style={{ background: currentMood.bg, border: '1px solid rgba(212,146,58,0.08)' }}
-            >
-              {/* 装饰圆 */}
-              <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full float" style={{ background: 'rgba(212,146,58,0.06)' }} />
-              <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full" style={{ background: 'rgba(107,158,116,0.06)' }} />
+            {/* 上半区：宠物 */}
+            <div className="flex-[3] flex flex-col items-center justify-end pb-6">
+              {/* 对话气泡（在宠物上方） */}
+              <div
+                className="relative bubble-pop mb-3 px-6 py-3 rounded-[20px]"
+                style={{
+                  background: 'rgba(255,255,255,0.75)',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+                  animationDelay: '0.3s',
+                  opacity: 0,
+                }}
+              >
+                {/* 尾巴朝下 */}
+                <div
+                  className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
+                  style={{ background: 'rgba(255,255,255,0.75)' }}
+                />
+                <p className="text-sm font-bold text-center" style={{ color: 'var(--bark)' }}>
+                  {currentMood.bubble}
+                </p>
+              </div>
 
-              <div className="relative flex items-start gap-4">
-                <div className="text-5xl float" style={{ lineHeight: 1 }}>{currentPet.emoji}</div>
-                <div className="flex-1 pt-0.5">
-                  <p className="text-[11px] font-semibold mb-1.5" style={{ color: 'var(--bark-muted)' }}>
-                    此刻 · {currentPet.name}的心情
-                  </p>
-                  <p className="text-xl font-extrabold mb-3" style={{ color: 'var(--bark)', lineHeight: 1.3 }}>
-                    {currentMood.text}
-                  </p>
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(8px)' }}
-                  >
-                    <span className="text-sm">{currentMood.emoji}</span>
-                    <span className="text-xs font-bold" style={{ color: 'var(--honey-deep)' }}>{currentMood.mood}</span>
-                  </div>
+              {/* 宠物 emoji */}
+              <div className="relative mb-3 slide-up-2">
+                <div className="text-[110px] float" style={{ lineHeight: 1 }}>
+                  {currentPet.emoji}
                 </div>
               </div>
+
+              {/* 宠物名 + 心情 */}
+              <p className="text-xl font-extrabold mb-1 slide-up-3" style={{ color: 'var(--bark)' }}>
+                {currentPet.name}
+              </p>
+              <p className="text-xs font-semibold slide-up-3" style={{ color: 'var(--bark-muted)' }}>
+                {currentMood.emoji} {currentMood.text}
+              </p>
             </div>
 
-            {/* 🎤 Listen CTA */}
-            <button
-              onClick={handleStartListening}
-              className="w-full rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 transition-all active:scale-[0.98] slide-up"
-              style={{
-                background: 'var(--overlay)',
-                border: '1px solid var(--fur-border)',
-                boxShadow: 'var(--shadow-md)',
-                transitionDuration: 'var(--duration-fast)',
-                animationDelay: '0.1s',
-              }}
-            >
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: 'linear-gradient(135deg, var(--honey), var(--honey-glow))' }}
+            {/* 下半区：语音条 CTA */}
+            <div className="flex-[2] flex flex-col items-center justify-center">
+              <button
+                onClick={handleStartListening}
+                className="flex items-center gap-3.5 px-5 py-3.5 rounded-full mb-3 transition-all active:scale-95 cta-breathe slide-up-4"
+                style={{
+                  background: 'linear-gradient(135deg, var(--honey), var(--honey-glow))',
+                  boxShadow: '0 4px 24px rgba(212,146,58,0.3)',
+                  transitionDuration: 'var(--duration-fast)',
+                }}
               >
-                <Icons.mic size={22} style={{ color: '#fff' }} />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold" style={{ color: 'var(--bark)' }}>
-                  听听{currentPet.name}想说什么
-                </p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--bark-muted)' }}>
-                  录下声音，AI 帮你读懂 ta 的心
-                </p>
-              </div>
-              <Icons.chevronRight size={16} style={{ color: 'var(--bark-faint)' }} />
-            </button>
+                {/* 播放图标 */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style={{ flexShrink: 0 }}>
+                  <path d="M8 5.14v14l11-7-11-7z"/>
+                </svg>
 
-            {/* 📖 Today's Moments */}
-            {recentResults.length > 0 && (
-              <div className="mb-5 slide-up" style={{ animationDelay: '0.15s' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-bold" style={{ color: 'var(--bark)' }}>今日时光</h2>
-                  <button className="text-[11px] font-semibold" style={{ color: 'var(--honey)' }}>查看全部</button>
-                </div>
-                <div
-                  className="flex gap-3 overflow-x-auto pb-2"
-                  style={{ margin: '0 -20px', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}
-                >
-                  {recentResults.map((r, i) => (
+                {/* 波形条 */}
+                <div className="flex items-center gap-[3px]" style={{ height: '28px' }}>
+                  {[14, 22, 10, 26, 16, 8, 20, 12, 24, 14, 18, 10, 22, 16, 12].map((h, i) => (
                     <div
                       key={i}
-                      className="shrink-0 rounded-2xl p-4 transition-all active:scale-[0.98]"
+                      className="voice-bar"
                       style={{
-                        width: '152px',
-                        background: 'var(--overlay)',
-                        border: '1px solid var(--fur-border)',
-                        boxShadow: 'var(--shadow-sm)',
+                        '--bar-h': h + 'px',
+                        '--bar-d': (0.6 + Math.random() * 0.5).toFixed(2) + 's',
+                        '--bar-delay': (i * 0.08).toFixed(2) + 's',
+                        opacity: 0.7 + Math.random() * 0.3,
                       }}
-                    >
-                      <div className="text-3xl mb-2.5">{r.emoji}</div>
-                      <p className="text-xs font-bold mb-1" style={{ color: r.color }}>{r.emotion}</p>
-                      <p
-                        className="text-[11px] font-medium leading-relaxed"
-                        style={{
-                          color: 'var(--bark-soft)',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        "{r.translation}"
-                      </p>
-                      <p className="text-[10px] font-medium mt-2.5" style={{ color: 'var(--bark-faint)' }}>{r.timeAgo}</p>
-                    </div>
+                    />
                   ))}
                 </div>
-              </div>
-            )}
 
-            {/* 💡 Daily Tip */}
-            <div
-              className="rounded-2xl p-4 slide-up"
-              style={{
-                background: 'var(--sky-soft)',
-                border: '1px solid rgba(91,143,185,0.08)',
-                animationDelay: '0.25s',
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <span className="text-xl mt-0.5">{dailyTip.emoji}</span>
-                <div className="flex-1">
-                  <p className="text-[11px] font-bold mb-1" style={{ color: 'var(--sky)' }}>每日小知识</p>
-                  <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--bark-soft)' }}>
-                    {dailyTip.content}
-                  </p>
-                </div>
+                {/* 时长 */}
+                <span className="text-xs font-bold text-white/80 ml-0.5" style={{ flexShrink: 0 }}>0:03</span>
+              </button>
+              <p className="text-[13px] font-bold slide-up-4" style={{ color: 'var(--bark)' }}>
+                {currentPet.name}给你发了一条语音
+              </p>
+              <p className="text-[11px] font-medium mt-0.5 slide-up-4" style={{ color: 'var(--bark-muted)' }}>
+                点击收听
+              </p>
+            </div>
+
+            {/* 💡 底部小知识 */}
+            <div className="absolute bottom-6 left-5 right-5 slide-up-5 safe-bottom">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="text-xs">{dailyTip.emoji}</span>
+                <p className="text-[11px] font-medium" style={{ color: 'var(--bark-faint)' }}>
+                  {dailyTip.content}
+                </p>
               </div>
             </div>
           </div>
