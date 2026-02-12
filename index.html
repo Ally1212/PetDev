@@ -1,0 +1,3417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#FAF6F0" />
+  <title>PetVoice — 听懂你的毛孩子</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- ═══════════════ CSS Custom Properties & Animations ═══════════════ -->
+  <style>
+    :root {
+      /* Surfaces */
+      --parchment:       #FAF6F0;
+      --cream:           #FFF8F0;
+      --cream-elevated:  #FFFCF7;
+      --overlay:         #FFFFFF;
+
+      /* Foreground — bark hierarchy */
+      --bark:            #3D2B1F;
+      --bark-soft:       #6B5547;
+      --bark-muted:      #9C8B7E;
+      --bark-faint:      #C4B8AD;
+
+      /* Accent — honey gold */
+      --honey:           #D4923A;
+      --honey-glow:      #E8A84C;
+      --honey-soft:      #FFF0D4;
+      --honey-deep:      #B87A2E;
+
+      /* Semantic — organic tones */
+      --sage:            #6B9E74;
+      --sage-soft:       #E5F0E7;
+      --coral:           #D97755;
+      --coral-soft:      #FCEAE4;
+      --sky:             #5B8FB9;
+      --sky-soft:        #E3EFF7;
+
+      /* Border */
+      --fur-border:        rgba(61, 43, 31, 0.07);
+      --fur-border-strong: rgba(61, 43, 31, 0.12);
+
+      /* Shadows */
+      --shadow-sm:
+        0 1px 2px rgba(61, 43, 31, 0.04),
+        0 1px 3px rgba(61, 43, 31, 0.03);
+      --shadow-md:
+        0 2px 4px rgba(61, 43, 31, 0.04),
+        0 4px 8px rgba(61, 43, 31, 0.03),
+        0 8px 16px rgba(61, 43, 31, 0.02);
+      --shadow-lg:
+        0 4px 8px rgba(61, 43, 31, 0.04),
+        0 8px 16px rgba(61, 43, 31, 0.03),
+        0 16px 32px rgba(61, 43, 31, 0.02);
+
+      /* Animation */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 150ms;
+      --duration-normal: 250ms;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', -apple-system, sans-serif;
+      background: var(--parchment);
+      color: var(--bark);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Waveform Animations ── */
+    @keyframes wave-breathe {
+      0%, 100% { transform: scaleY(0.3); }
+      50% { transform: scaleY(0.6); }
+    }
+
+    @keyframes wave-active {
+      0%, 100% { transform: scaleY(0.4); }
+      25% { transform: scaleY(1.0); }
+      50% { transform: scaleY(0.6); }
+      75% { transform: scaleY(0.9); }
+    }
+
+    @keyframes wave-translate {
+      0% { transform: scaleY(0.8); }
+      50% { transform: scaleY(0.2); }
+      100% { transform: scaleY(0.05); }
+    }
+
+    .wave-bar {
+      width: 3px;
+      border-radius: 3px;
+      transform-origin: center;
+      animation: wave-breathe 2s ease-in-out infinite;
+      transition: background 0.3s var(--ease-out);
+    }
+    .wave-bar.recording { animation: wave-active 0.6s ease-in-out infinite; }
+    .wave-bar.translating { animation: wave-translate 1.2s ease-out forwards; }
+
+    /* ── Pulse ring ── */
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    .pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
+
+    /* ── Slide-up ── */
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .slide-up { animation: slide-up 0.5s var(--ease-out) forwards; }
+
+    /* ── Float ── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .float { animation: float 3s ease-in-out infinite; }
+
+    /* ── Fill bar ── */
+    @keyframes fill-bar { from { width: 0; } }
+
+    /* ── Fade in ── */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in { animation: fadeIn 0.3s var(--ease-out); }
+
+    /* ── Spin ── */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* ── iOS safe area ── */
+    .safe-bottom { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .safe-top { padding-top: max(12px, env(safe-area-inset-top)); }
+
+    /* ── No scrollbar ── */
+    ::-webkit-scrollbar { width: 0; height: 0; }
+    * { scrollbar-width: none; }
+
+    /* ── Recording dot blink ── */
+    @keyframes blink-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .blink-dot { animation: blink-dot 1s ease-in-out infinite; }
+
+    /* ── Toast slide ── */
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast-in { animation: toast-in 0.35s var(--ease-out) forwards; }
+
+    /* ── Corner bracket for viewfinder ── */
+    .viewfinder-corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: rgba(255,255,255,0.8);
+      border-style: solid;
+      border-width: 0;
+    }
+    .viewfinder-corner.tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
+    .viewfinder-corner.tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
+    .viewfinder-corner.bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
+    .viewfinder-corner.br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
+  </style>
+
+  <!-- ═══════════════ Tailwind Config ═══════════════ -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            parchment: '#FAF6F0',
+            cream: { DEFAULT: '#FFF8F0', elevated: '#FFFCF7' },
+            bark: { DEFAULT: '#3D2B1F', soft: '#6B5547', muted: '#9C8B7E', faint: '#C4B8AD' },
+            honey: { DEFAULT: '#D4923A', glow: '#E8A84C', soft: '#FFF0D4', deep: '#B87A2E' },
+            sage: { DEFAULT: '#6B9E74', soft: '#E5F0E7' },
+            coral: { DEFAULT: '#D97755', soft: '#FCEAE4' },
+            sky: { DEFAULT: '#5B8FB9', soft: '#E3EFF7' },
+          },
+          fontFamily: {
+            sans: ['Nunito', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    /* ═══════════════════════════════════════════════════════════════
+       ICONS — 38 inline SVG functional components
+       ═══════════════════════════════════════════════════════════════ */
+    const Icons = {
+      mic: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+        </svg>
+      ),
+      camera: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
+          <circle cx="12" cy="13" r="3"/>
+        </svg>
+      ),
+      video: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>
+        </svg>
+      ),
+      home: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+      pawprint: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="4" cy="8" r="2"/>
+          <path d="M13.5 11.5c-1-.3-2-.3-3 0C8.2 12.4 6 15 6 17.5c0 1.7 1 3.5 4 3.5h4c3 0 4-1.8 4-3.5 0-2.5-2.2-5.1-4.5-6Z"/>
+        </svg>
+      ),
+      grid: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+        </svg>
+      ),
+      heart: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+      ),
+      share: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>
+        </svg>
+      ),
+      bookmark: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+        </svg>
+      ),
+      activity: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      ),
+      user: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      ),
+      settings: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      ),
+      chevronDown: (props) => (
+        <svg width={props.size||16} height={props.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      ),
+      chevronRight: (props) => (
+        <svg width={props.size||16} height={props.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      ),
+      x: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
+      ),
+      plus: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M5 12h14"/><path d="M12 5v14"/>
+        </svg>
+      ),
+      edit: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>
+        </svg>
+      ),
+      bell: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+        </svg>
+      ),
+      shield: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+        </svg>
+      ),
+      globe: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+        </svg>
+      ),
+      helpCircle: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+        </svg>
+      ),
+      logOut: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+        </svg>
+      ),
+      crown: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L20.266 6.5a.5.5 0 0 1 .734.44v8.56a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6.94a.5.5 0 0 1 .734-.44l3.36 2.664a1 1 0 0 0 1.516-.294z"/>
+          <path d="M5 21h14"/>
+        </svg>
+      ),
+      flame: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+        </svg>
+      ),
+      trophy: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+          <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+        </svg>
+      ),
+      play: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <polygon points="6 3 20 12 6 21 6 3"/>
+        </svg>
+      ),
+      clock: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+      check: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      ),
+      star: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      ),
+      zap: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>
+        </svg>
+      ),
+      alertTriangle: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+          <path d="M12 9v4"/><path d="M12 17h.01"/>
+        </svg>
+      ),
+      download: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+      ),
+      thumbsUp: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+        </svg>
+      ),
+      thumbsDown: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+        </svg>
+      ),
+      moon: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+      ),
+      search: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      ),
+      image: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+        </svg>
+      ),
+      refresh: (props) => (
+        <svg width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round" className={props.className} style={props.style}>
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+        </svg>
+      ),
+    };
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       SHARED COMPONENT — ProgressRing
+       ═══════════════════════════════════════════════════════════════ */
+    function ProgressRing({ value = 0, size = 64, strokeWidth = 5, color = 'var(--honey)', trackColor = 'rgba(61,43,31,0.06)', children }) {
+      const radius = (size - strokeWidth) / 2;
+      const circumference = 2 * Math.PI * radius;
+      const offset = circumference - (value / 100) * circumference;
+
+      return (
+        <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
+            <circle
+              cx={size / 2} cy={size / 2} r={radius}
+              fill="none" stroke={trackColor} strokeWidth={strokeWidth}
+            />
+            <circle
+              cx={size / 2} cy={size / 2} r={radius}
+              fill="none" stroke={color} strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              style={{ transition: 'stroke-dashoffset 0.8s var(--ease-out)' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       SHARED COMPONENT — BottomSheet
+       ═══════════════════════════════════════════════════════════════ */
+    function BottomSheet({ open, onClose, title, children }) {
+      if (!open) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: '430px', margin: '0 auto' }}>
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 fade-in"
+            style={{ background: 'rgba(61,43,31,0.3)' }}
+            onClick={onClose}
+          />
+          {/* Panel */}
+          <div
+            className="relative w-full slide-up rounded-t-3xl pt-3 pb-6 px-5"
+            style={{ background: 'var(--overlay)', maxHeight: '80vh', overflowY: 'auto' }}
+          >
+            {/* Handle */}
+            <div className="flex justify-center mb-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: 'var(--bark-faint)' }} />
+            </div>
+            {/* Title */}
+            {title && (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold" style={{ color: 'var(--bark)' }}>{title}</h3>
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-bark/5 transition-all active:scale-95"
+                  style={{ color: 'var(--bark-muted)', transitionDuration: 'var(--duration-fast)' }}
+                >
+                  <Icons.x size={18} />
+                </button>
+              </div>
+            )}
+            {/* Content */}
+            <div>{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       SHARED COMPONENT — Toast
+       ═══════════════════════════════════════════════════════════════ */
+    function Toast({ message, visible, icon }) {
+      if (!visible) return null;
+      return (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 toast-in" style={{ maxWidth: '340px' }}>
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold"
+            style={{ background: 'var(--bark)', color: 'var(--cream)', boxShadow: 'var(--shadow-lg)' }}
+          >
+            {icon && <span className="text-base">{icon}</span>}
+            <span>{message}</span>
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       WAVEFORM VISUALIZER
+       ═══════════════════════════════════════════════════════════════ */
+    function WaveformVisualizer({ state }) {
+      const barCount = 48;
+      const bars = Array.from({ length: barCount }, (_, i) => {
+        const center = barCount / 2;
+        const distFromCenter = Math.abs(i - center) / center;
+        const baseHeight = 24 + (1 - distFromCenter) * 40;
+        const delay = (i * 0.05) + 's';
+        const stateClass = state === 'recording' ? 'recording' : state === 'translating' ? 'translating' : '';
+
+        return (
+          <div
+            key={i}
+            className={`wave-bar ${stateClass}`}
+            style={{
+              height: `${baseHeight}px`,
+              background: state === 'recording'
+                ? 'linear-gradient(180deg, #E8A84C, #D4923A)'
+                : state === 'translating'
+                ? 'linear-gradient(180deg, #6B9E74, #D4923A)'
+                : 'linear-gradient(180deg, var(--bark-faint), var(--bark-muted))',
+              animationDelay: delay,
+              opacity: state === 'idle' ? 0.4 : 0.85,
+            }}
+          />
+        );
+      });
+
+      return (
+        <div className="flex items-center justify-center gap-[2px]" style={{ height: '80px' }}>
+          {bars}
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       PET SELECTOR CHIP
+       ═══════════════════════════════════════════════════════════════ */
+    function PetChip({ pet, selected, onClick }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`
+            flex items-center gap-2 px-3 py-1.5 rounded-full transition-all active:scale-95
+            ${selected
+              ? 'bg-honey/15 text-honey-deep ring-1 ring-honey/20'
+              : 'bg-transparent text-bark-muted hover:text-bark-soft hover:bg-bark/5'
+            }
+          `}
+          style={{ transitionDuration: 'var(--duration-fast)' }}
+        >
+          <span className="text-lg">{pet.emoji}</span>
+          <span className="text-sm font-semibold">{pet.name}</span>
+        </button>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       INPUT MODE BUTTON
+       ═══════════════════════════════════════════════════════════════ */
+    function InputModeButton({ icon: Icon, label, active, onClick, primary, recording }) {
+      if (primary) {
+        return (
+          <div className="relative flex flex-col items-center gap-1.5">
+            {recording && (
+              <div
+                className="pulse-ring absolute rounded-full"
+                style={{ background: 'var(--honey)', top: '-4px', left: '-4px', right: '-4px', bottom: 'calc(100% - 68px)', width: '72px', height: '72px' }}
+              />
+            )}
+            <button
+              onClick={onClick}
+              className={`
+                relative w-16 h-16 rounded-full flex items-center justify-center
+                transition-all active:scale-95
+                ${recording
+                  ? 'bg-coral text-white shadow-lg'
+                  : 'bg-honey text-white hover:bg-honey-glow'
+                }
+              `}
+              style={{
+                boxShadow: recording
+                  ? '0 4px 16px rgba(217,119,85,0.35)'
+                  : '0 4px 16px rgba(212,146,58,0.25)',
+                transitionDuration: 'var(--duration-fast)',
+              }}
+            >
+              <Icon size={26} />
+            </button>
+            <span className={`text-xs font-semibold ${recording ? 'text-coral' : 'text-bark-muted'}`}>
+              {recording ? '录制中...' : label}
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            onClick={onClick}
+            className={`
+              w-12 h-12 rounded-2xl flex items-center justify-center
+              transition-all active:scale-95
+              ${active
+                ? 'bg-honey/15 text-honey-deep'
+                : 'bg-bark/[0.04] text-bark-muted hover:bg-bark/[0.08] hover:text-bark-soft'
+              }
+            `}
+            style={{ transitionDuration: 'var(--duration-fast)' }}
+          >
+            <Icon size={20} />
+          </button>
+          <span className={`text-[11px] font-medium ${active ? 'text-honey-deep' : 'text-bark-muted'}`}>{label}</span>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       TRANSLATION RESULT CARD — with feedback
+       ═══════════════════════════════════════════════════════════════ */
+    function TranslationCard({ result, onSave, onShare, modeBadge, onFeedback }) {
+      const [feedbackState, setFeedbackState] = useState('none'); // none | positive | negative | correcting
+      const [selectedCorrection, setSelectedCorrection] = useState(null);
+
+      if (!result) return null;
+
+      const emotionOptions = ['开心', '饥饿', '焦虑', '恐惧', '兴奋', '放松', '孤独', '生气', '好奇', '撒娇', '疲倦', '疼痛'];
+
+      const handleThumbsUp = () => {
+        setFeedbackState('positive');
+        if (onFeedback) onFeedback('positive');
+      };
+
+      const handleThumbsDown = () => {
+        setFeedbackState('correcting');
+      };
+
+      const handleCorrectionSelect = (emotion) => {
+        setSelectedCorrection(emotion);
+        setFeedbackState('negative');
+        if (onFeedback) onFeedback('negative', emotion);
+      };
+
+      return (
+        <div className="slide-up px-5 pb-4">
+          <div
+            className="rounded-2xl p-5 relative overflow-hidden"
+            style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-md)' }}
+          >
+            {/* Emotion indicator strip */}
+            <div
+              className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
+              style={{ background: `linear-gradient(90deg, ${result.color}, ${result.colorEnd || result.color}88)` }}
+            />
+
+            {/* Mode badge */}
+            {modeBadge && (
+              <div className="mb-3 mt-1">
+                <span
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: 'var(--sky-soft)', color: 'var(--sky)' }}
+                >
+                  {modeBadge}
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-start gap-4 mt-1">
+              {/* Emotion icon */}
+              <div
+                className="float w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+                style={{ background: `${result.color}15` }}
+              >
+                {result.emoji}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                {/* Emotion label */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-base" style={{ color: 'var(--bark)' }}>
+                    {result.emotion}
+                  </span>
+                  <span
+                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: `${result.color}15`, color: result.color }}
+                  >
+                    {result.species}
+                  </span>
+                </div>
+
+                {/* Translation text */}
+                <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--bark-soft)' }}>
+                  "{result.translation}"
+                </p>
+
+                {/* Confidence bar */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium" style={{ color: 'var(--bark-muted)' }}>置信度</span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(61,43,31,0.05)' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${result.confidence}%`,
+                        background: `linear-gradient(90deg, ${result.color}, ${result.color}cc)`,
+                        animation: 'fill-bar 0.8s var(--ease-out)',
+                      }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold tabular-nums" style={{ color: result.color }}>
+                    {result.confidence}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Context tags + actions */}
+            <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: '1px solid var(--fur-border)' }}>
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: 'rgba(61,43,31,0.04)', color: 'var(--bark-muted)' }}>
+                {result.time}
+              </span>
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: 'rgba(61,43,31,0.04)', color: 'var(--bark-muted)' }}>
+                {result.context}
+              </span>
+              <div className="flex-1" />
+              <button
+                onClick={onSave}
+                className="p-2 rounded-xl text-bark-muted hover:text-honey hover:bg-honey/10 transition-all active:scale-95"
+                style={{ transitionDuration: 'var(--duration-fast)' }}
+              >
+                <Icons.bookmark size={16} />
+              </button>
+              <button
+                onClick={onShare}
+                className="p-2 rounded-xl text-bark-muted hover:text-honey hover:bg-honey/10 transition-all active:scale-95"
+                style={{ transitionDuration: 'var(--duration-fast)' }}
+              >
+                <Icons.share size={16} />
+              </button>
+            </div>
+
+            {/* Translation Feedback Row */}
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--fur-border)' }}>
+              {feedbackState === 'none' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium" style={{ color: 'var(--bark-muted)' }}>翻译准确吗？</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleThumbsUp}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all active:scale-95 hover:bg-sage-soft"
+                      style={{ color: 'var(--sage)', transitionDuration: 'var(--duration-fast)' }}
+                    >
+                      <Icons.thumbsUp size={14} />
+                      <span className="text-xs font-semibold">准确</span>
+                    </button>
+                    <button
+                      onClick={handleThumbsDown}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all active:scale-95 hover:bg-coral-soft"
+                      style={{ color: 'var(--coral)', transitionDuration: 'var(--duration-fast)' }}
+                    >
+                      <Icons.thumbsDown size={14} />
+                      <span className="text-xs font-semibold">不准</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {feedbackState === 'positive' && (
+                <div className="flex items-center gap-2 fade-in">
+                  <Icons.check size={14} style={{ color: 'var(--sage)' }} />
+                  <span className="text-xs font-semibold" style={{ color: 'var(--sage)' }}>感谢反馈！AI 学习中...</span>
+                </div>
+              )}
+
+              {feedbackState === 'correcting' && (
+                <div className="fade-in">
+                  <p className="text-xs font-medium mb-2" style={{ color: 'var(--bark-muted)' }}>你觉得更准确的情绪是：</p>
+                  <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                    {emotionOptions.map((em) => (
+                      <button
+                        key={em}
+                        onClick={() => handleCorrectionSelect(em)}
+                        className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 shrink-0"
+                        style={{
+                          background: 'rgba(61,43,31,0.04)',
+                          color: 'var(--bark-soft)',
+                          border: '1px solid var(--fur-border)',
+                          transitionDuration: 'var(--duration-fast)',
+                        }}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feedbackState === 'negative' && (
+                <div className="flex items-center gap-2 fade-in">
+                  <Icons.check size={14} style={{ color: 'var(--sage)' }} />
+                  <span className="text-xs font-semibold" style={{ color: 'var(--sage)' }}>
+                    已记录「{selectedCorrection}」，感谢纠正！
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       RECENT TRANSLATION MINI CARD
+       ═══════════════════════════════════════════════════════════════ */
+    function RecentMiniCard({ result }) {
+      return (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:scale-[1.01] cursor-pointer active:scale-[0.99]"
+          style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)', transitionDuration: 'var(--duration-fast)' }}
+        >
+          <span className="text-xl">{result.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold truncate" style={{ color: 'var(--bark)' }}>{result.emotion}</span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0"
+                style={{ background: `${result.color}12`, color: result.color }}>
+                {result.confidence}%
+              </span>
+            </div>
+            <p className="text-xs truncate" style={{ color: 'var(--bark-muted)' }}>"{result.translation}"</p>
+          </div>
+          <span className="text-[10px] font-medium tabular-nums shrink-0" style={{ color: 'var(--bark-faint)' }}>
+            {result.timeAgo}
+          </span>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       AI LEARNING PROMPT CARD
+       ═══════════════════════════════════════════════════════════════ */
+    function AILearningPrompt({ visible, onContribute, onSkip }) {
+      if (!visible) return null;
+      return (
+        <div className="px-5 pb-3 slide-up">
+          <div
+            className="rounded-2xl p-4 flex items-start gap-3"
+            style={{ background: 'var(--sage-soft)', border: '1px solid rgba(107,158,116,0.12)' }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(107,158,116,0.15)' }}
+            >
+              <Icons.zap size={18} style={{ color: 'var(--sage)' }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-bold mb-1" style={{ color: 'var(--sage)' }}>帮 AI 学习</p>
+              <p className="text-[11px] leading-relaxed mb-3" style={{ color: 'var(--bark-soft)' }}>
+                这条数据可以帮助 AI 更好地理解宠物
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onContribute}
+                  className="px-4 py-1.5 rounded-full text-xs font-bold text-white transition-all active:scale-95"
+                  style={{ background: 'var(--sage)', transitionDuration: 'var(--duration-fast)' }}
+                >
+                  贡献数据
+                </button>
+                <button
+                  onClick={onSkip}
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95"
+                  style={{ color: 'var(--bark-muted)', transitionDuration: 'var(--duration-fast)' }}
+                >
+                  跳过
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       SHARE SHEET CONTENT
+       ═══════════════════════════════════════════════════════════════ */
+    function ShareSheetContent({ result, onSelect }) {
+      if (!result) return null;
+
+      const platforms = [
+        { id: 'wechat', label: '微信好友', color: '#07C160', emoji: '💬' },
+        { id: 'moments', label: '朋友圈', color: '#07C160', emoji: '🌐' },
+        { id: 'douyin', label: '抖音', color: '#161823', emoji: '🎵' },
+        { id: 'save', label: '保存图片', color: 'var(--bark-soft)', emoji: '💾' },
+      ];
+
+      return (
+        <div>
+          {/* Mini preview card */}
+          <div
+            className="rounded-xl p-3 mb-5 flex items-center gap-3"
+            style={{ background: 'var(--parchment)', border: '1px solid var(--fur-border)' }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+              style={{ background: `${result.color}15` }}
+            >
+              {result.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--bark)' }}>{result.emotion}</p>
+              <p className="text-xs truncate" style={{ color: 'var(--bark-muted)' }}>"{result.translation}"</p>
+            </div>
+            <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: result.color }}>
+              {result.confidence}%
+            </span>
+          </div>
+
+          {/* Platform buttons */}
+          <div className="grid grid-cols-4 gap-3">
+            {platforms.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onSelect(p.id)}
+                className="flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-95 hover:bg-bark/[0.03]"
+                style={{ transitionDuration: 'var(--duration-fast)' }}
+              >
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl"
+                  style={{ background: `${p.color}12` }}
+                >
+                  {p.emoji}
+                </div>
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--bark-soft)' }}>{p.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       PHOTO MODE — Viewfinder UI
+       ═══════════════════════════════════════════════════════════════ */
+    function PhotoMode({ onResult, currentPet }) {
+      const [state, setState] = useState('idle'); // idle | analyzing | done
+      const [result, setResult] = useState(null);
+
+      const handleCapture = () => {
+        if (state !== 'idle') return;
+        setState('analyzing');
+        setTimeout(() => {
+          setResult({
+            emotion: '好奇探索',
+            translation: `${currentPet.name}正在好奇地打量周围，耳朵前倾，尾巴微微摆动`,
+            confidence: 83,
+            emoji: '🧐',
+            color: '#5B8FB9',
+            colorEnd: '#5B8FB9',
+            species: '姿态 · 好奇',
+            time: '下午 3:30',
+            context: '活动量正常',
+            posture: '耳朵前倾 · 瞳孔放大 · 身体前倾',
+          });
+          setState('done');
+          if (onResult) onResult();
+        }, 2000);
+      };
+
+      const handleReset = () => {
+        setState('idle');
+        setResult(null);
+      };
+
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-4">
+          {state === 'idle' && (
+            <div className="w-full fade-in">
+              {/* Viewfinder */}
+              <div
+                className="relative w-full rounded-2xl overflow-hidden mb-6"
+                style={{ aspectRatio: '4/3', background: 'rgba(61,43,31,0.06)' }}
+              >
+                <div className="absolute inset-4 relative">
+                  <div className="viewfinder-corner tl" />
+                  <div className="viewfinder-corner tr" />
+                  <div className="viewfinder-corner bl" />
+                  <div className="viewfinder-corner br" />
+                </div>
+                {/* Center icon */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(61,43,31,0.08)' }}
+                  >
+                    <Icons.camera size={28} style={{ color: 'var(--bark-muted)' }} />
+                  </div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--bark-muted)' }}>拍照识别姿态</p>
+                </div>
+              </div>
+
+              {/* Capture button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleCapture}
+                  className="w-16 h-16 rounded-full flex items-center justify-center bg-honey text-white transition-all active:scale-95"
+                  style={{ boxShadow: '0 4px 16px rgba(212,146,58,0.25)', transitionDuration: 'var(--duration-fast)' }}
+                >
+                  <Icons.camera size={26} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {state === 'analyzing' && (
+            <div className="flex flex-col items-center gap-4 fade-in">
+              <div className="spin" style={{ color: 'var(--honey)' }}>
+                <Icons.refresh size={32} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--honey)' }}>正在分析姿态...</p>
+            </div>
+          )}
+
+          {state === 'done' && result && (
+            <div className="w-full fade-in">
+              <TranslationCard
+                result={result}
+                modeBadge="拍照识别"
+                onSave={() => {}}
+                onShare={() => {}}
+              />
+              {/* Posture detail */}
+              <div className="px-5 mt-2">
+                <div
+                  className="rounded-xl p-3 flex items-center gap-2"
+                  style={{ background: 'var(--sky-soft)' }}
+                >
+                  <Icons.activity size={14} style={{ color: 'var(--sky)' }} />
+                  <span className="text-xs font-semibold" style={{ color: 'var(--sky)' }}>
+                    {result.posture}
+                  </span>
+                </div>
+              </div>
+              {/* Reset */}
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95"
+                  style={{
+                    background: 'rgba(61,43,31,0.05)',
+                    color: 'var(--bark-soft)',
+                    transitionDuration: 'var(--duration-fast)',
+                  }}
+                >
+                  <Icons.refresh size={16} />
+                  再拍一张
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       VIDEO MODE — Recording UI
+       ═══════════════════════════════════════════════════════════════ */
+    function VideoMode({ onResult, currentPet }) {
+      const [state, setState] = useState('idle'); // idle | recording | analyzing | done
+      const [timer, setTimer] = useState(0);
+      const [result, setResult] = useState(null);
+      const timerRef = useRef(null);
+
+      const formatTime = (s) => {
+        const mm = String(Math.floor(s / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+      };
+
+      const handleRecord = () => {
+        if (state === 'idle') {
+          setState('recording');
+          setTimer(0);
+          let t = 0;
+          timerRef.current = setInterval(() => {
+            t++;
+            setTimer(t);
+            if (t >= 10) {
+              clearInterval(timerRef.current);
+              setState('analyzing');
+              setTimeout(() => {
+                setResult({
+                  emotion: '愉悦互动',
+                  translation: `${currentPet.name}非常开心！它的声音和动作都充满了活力和愉悦感`,
+                  confidence: 91,
+                  emoji: '🥰',
+                  color: '#6B9E74',
+                  colorEnd: '#6B9E74',
+                  species: '音视频 · 综合',
+                  time: '下午 3:35',
+                  context: '互动场景',
+                });
+                setState('done');
+                if (onResult) onResult();
+              }, 2000);
+            }
+          }, 1000);
+        } else if (state === 'recording') {
+          clearInterval(timerRef.current);
+          setState('analyzing');
+          setTimeout(() => {
+            setResult({
+              emotion: '愉悦互动',
+              translation: `${currentPet.name}非常开心！它的声音和动作都充满了活力和愉悦感`,
+              confidence: 91,
+              emoji: '🥰',
+              color: '#6B9E74',
+              colorEnd: '#6B9E74',
+              species: '音视频 · 综合',
+              time: '下午 3:35',
+              context: '互动场景',
+            });
+            setState('done');
+            if (onResult) onResult();
+          }, 2000);
+        }
+      };
+
+      useEffect(() => {
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+      }, []);
+
+      const handleReset = () => {
+        setState('idle');
+        setTimer(0);
+        setResult(null);
+      };
+
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-4">
+          {(state === 'idle' || state === 'recording') && (
+            <div className="w-full fade-in">
+              {/* Video preview area */}
+              <div
+                className="relative w-full rounded-2xl overflow-hidden mb-6 flex items-center justify-center"
+                style={{ aspectRatio: '16/9', background: 'rgba(61,43,31,0.06)' }}
+              >
+                {/* Timer */}
+                <div className="absolute top-3 left-0 right-0 flex justify-center">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: state === 'recording' ? 'rgba(217,119,85,0.12)' : 'rgba(61,43,31,0.05)' }}>
+                    {state === 'recording' && (
+                      <div className="w-2 h-2 rounded-full bg-coral blink-dot" />
+                    )}
+                    <span
+                      className="text-sm font-bold tabular-nums"
+                      style={{ color: state === 'recording' ? 'var(--coral)' : 'var(--bark-muted)' }}
+                    >
+                      {formatTime(timer)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Center */}
+                {state === 'idle' && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Icons.video size={28} style={{ color: 'var(--bark-muted)' }} />
+                    <p className="text-xs font-semibold" style={{ color: 'var(--bark-muted)' }}>录制视频分析行为</p>
+                  </div>
+                )}
+
+                {state === 'recording' && (
+                  <div className="flex flex-col items-center gap-2">
+                    <WaveformVisualizer state="recording" />
+                  </div>
+                )}
+
+                {/* Duration hint */}
+                {state === 'idle' && (
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                    <span className="text-[10px] font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(61,43,31,0.05)', color: 'var(--bark-faint)' }}>
+                      建议录制 5-10 秒
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Record button */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  {state === 'recording' && (
+                    <div
+                      className="pulse-ring absolute rounded-full"
+                      style={{ background: 'var(--coral)', top: '-4px', left: '-4px', width: '72px', height: '72px' }}
+                    />
+                  )}
+                  <button
+                    onClick={handleRecord}
+                    className={`
+                      relative w-16 h-16 rounded-full flex items-center justify-center text-white transition-all active:scale-95
+                      ${state === 'recording' ? 'bg-coral' : 'bg-honey hover:bg-honey-glow'}
+                    `}
+                    style={{
+                      boxShadow: state === 'recording'
+                        ? '0 4px 16px rgba(217,119,85,0.35)'
+                        : '0 4px 16px rgba(212,146,58,0.25)',
+                      transitionDuration: 'var(--duration-fast)',
+                    }}
+                  >
+                    {state === 'recording' ? (
+                      <div className="w-5 h-5 rounded-sm bg-white" />
+                    ) : (
+                      <Icons.video size={26} />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <p className="text-center text-xs font-semibold mt-2" style={{ color: state === 'recording' ? 'var(--coral)' : 'var(--bark-muted)' }}>
+                {state === 'recording' ? '点击停止' : '开始录制'}
+              </p>
+            </div>
+          )}
+
+          {state === 'analyzing' && (
+            <div className="flex flex-col items-center gap-4 fade-in">
+              <div className="spin" style={{ color: 'var(--sage)' }}>
+                <Icons.refresh size={32} />
+              </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--sage)' }}>音视频融合分析中...</p>
+            </div>
+          )}
+
+          {state === 'done' && result && (
+            <div className="w-full fade-in">
+              <TranslationCard
+                result={result}
+                modeBadge="音视频融合分析"
+                onSave={() => {}}
+                onShare={() => {}}
+              />
+              {/* Reset */}
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95"
+                  style={{
+                    background: 'rgba(61,43,31,0.05)',
+                    color: 'var(--bark-soft)',
+                    transitionDuration: 'var(--duration-fast)',
+                  }}
+                >
+                  <Icons.refresh size={16} />
+                  再录一段
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       HOME PAGE — 情感化首页，工具藏于一次点击之后
+       ═══════════════════════════════════════════════════════════════ */
+    function HomePage({
+      pets, selectedPet, onSelectPet, inputMode, onInputModeChange,
+      recordingState, onRecord, showResult, translationResult, recentResults,
+      onShowShare, showAIPrompt, onAIContribute, onAISkip, onFeedback,
+    }) {
+      const currentPet = pets[selectedPet];
+      const [isListening, setIsListening] = useState(false);
+
+      /* 宠物心情（模拟数据） */
+      const moods = [
+        { mood: '开心', emoji: '😊', text: `${currentPet.name}今天心情不错~`, bg: 'linear-gradient(135deg, var(--honey-soft) 0%, var(--cream) 50%, var(--sage-soft) 100%)' },
+        { mood: '想你', emoji: '🥰', text: `${currentPet.name}一直在等你回来`, bg: 'linear-gradient(135deg, var(--coral-soft) 0%, var(--cream) 50%, var(--honey-soft) 100%)' },
+        { mood: '慵懒', emoji: '😴', text: `${currentPet.name}正在享受午后时光`, bg: 'linear-gradient(135deg, var(--sky-soft) 0%, var(--cream) 50%, var(--sage-soft) 100%)' },
+      ];
+      const moodIndex = useMemo(() => Math.floor(Math.random() * moods.length), []);
+      const currentMood = moods[moodIndex];
+
+      /* 每日小知识 */
+      const tips = [
+        { emoji: '💡', content: '猫咪对你慢慢眨眼，是在说"我信任你、我爱你"哦~' },
+        { emoji: '🐾', content: '狗狗歪头看你时，其实是在努力理解你说的话~' },
+        { emoji: '✨', content: '猫咪把肚子露给你，是对你最大的信任表现~' },
+      ];
+      const tipIndex = useMemo(() => Math.floor(Math.random() * tips.length), []);
+      const dailyTip = tips[tipIndex];
+
+      /* 时间问候 */
+      const hour = new Date().getHours();
+      const timeGreeting = hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好';
+
+      const handleStartListening = () => setIsListening(true);
+      const handleCloseListening = () => {
+        if (recordingState === 'idle') setIsListening(false);
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col fade-in" style={{ background: 'var(--parchment)' }}>
+          {/* ── Header ── */}
+          <header className="px-5 pt-4 pb-1 safe-top">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: 'var(--bark-muted)' }}>{timeGreeting} 👋</p>
+                <h1 className="text-lg font-extrabold tracking-tight" style={{ color: 'var(--bark)', letterSpacing: '-0.02em' }}>
+                  PetVoice
+                </h1>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {pets.map((pet, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSelectPet(i)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      selectedPet === i ? 'ring-2 ring-honey/60 ring-offset-1' : ''
+                    }`}
+                    style={{
+                      background: selectedPet === i ? 'var(--honey-soft)' : 'rgba(61,43,31,0.04)',
+                      transitionDuration: 'var(--duration-fast)',
+                    }}
+                  >
+                    <span className="text-lg">{pet.emoji}</span>
+                  </button>
+                ))}
+                <button
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  style={{ color: 'var(--bark-faint)', transitionDuration: 'var(--duration-fast)' }}
+                >
+                  <Icons.bell size={18} />
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* ── Scrollable Content ── */}
+          <div className="flex-1 overflow-y-auto px-5 pt-4 pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+            {/* 🐾 Pet Mood Card — Hero */}
+            <div
+              className="rounded-3xl p-6 mb-5 relative overflow-hidden slide-up"
+              style={{ background: currentMood.bg, border: '1px solid rgba(212,146,58,0.08)' }}
+            >
+              {/* 装饰圆 */}
+              <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full float" style={{ background: 'rgba(212,146,58,0.06)' }} />
+              <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full" style={{ background: 'rgba(107,158,116,0.06)' }} />
+
+              <div className="relative flex items-start gap-4">
+                <div className="text-5xl float" style={{ lineHeight: 1 }}>{currentPet.emoji}</div>
+                <div className="flex-1 pt-0.5">
+                  <p className="text-[11px] font-semibold mb-1.5" style={{ color: 'var(--bark-muted)' }}>
+                    此刻 · {currentPet.name}的心情
+                  </p>
+                  <p className="text-xl font-extrabold mb-3" style={{ color: 'var(--bark)', lineHeight: 1.3 }}>
+                    {currentMood.text}
+                  </p>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(8px)' }}
+                  >
+                    <span className="text-sm">{currentMood.emoji}</span>
+                    <span className="text-xs font-bold" style={{ color: 'var(--honey-deep)' }}>{currentMood.mood}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 🎤 Listen CTA */}
+            <button
+              onClick={handleStartListening}
+              className="w-full rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 transition-all active:scale-[0.98] slide-up"
+              style={{
+                background: 'var(--overlay)',
+                border: '1px solid var(--fur-border)',
+                boxShadow: 'var(--shadow-md)',
+                transitionDuration: 'var(--duration-fast)',
+                animationDelay: '0.1s',
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, var(--honey), var(--honey-glow))' }}
+              >
+                <Icons.mic size={22} style={{ color: '#fff' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold" style={{ color: 'var(--bark)' }}>
+                  听听{currentPet.name}想说什么
+                </p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--bark-muted)' }}>
+                  录下声音，AI 帮你读懂 ta 的心
+                </p>
+              </div>
+              <Icons.chevronRight size={16} style={{ color: 'var(--bark-faint)' }} />
+            </button>
+
+            {/* 📖 Today's Moments */}
+            {recentResults.length > 0 && (
+              <div className="mb-5 slide-up" style={{ animationDelay: '0.15s' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold" style={{ color: 'var(--bark)' }}>今日时光</h2>
+                  <button className="text-[11px] font-semibold" style={{ color: 'var(--honey)' }}>查看全部</button>
+                </div>
+                <div
+                  className="flex gap-3 overflow-x-auto pb-2"
+                  style={{ margin: '0 -20px', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}
+                >
+                  {recentResults.map((r, i) => (
+                    <div
+                      key={i}
+                      className="shrink-0 rounded-2xl p-4 transition-all active:scale-[0.98]"
+                      style={{
+                        width: '152px',
+                        background: 'var(--overlay)',
+                        border: '1px solid var(--fur-border)',
+                        boxShadow: 'var(--shadow-sm)',
+                      }}
+                    >
+                      <div className="text-3xl mb-2.5">{r.emoji}</div>
+                      <p className="text-xs font-bold mb-1" style={{ color: r.color }}>{r.emotion}</p>
+                      <p
+                        className="text-[11px] font-medium leading-relaxed"
+                        style={{
+                          color: 'var(--bark-soft)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        "{r.translation}"
+                      </p>
+                      <p className="text-[10px] font-medium mt-2.5" style={{ color: 'var(--bark-faint)' }}>{r.timeAgo}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 💡 Daily Tip */}
+            <div
+              className="rounded-2xl p-4 slide-up"
+              style={{
+                background: 'var(--sky-soft)',
+                border: '1px solid rgba(91,143,185,0.08)',
+                animationDelay: '0.25s',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">{dailyTip.emoji}</span>
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold mb-1" style={{ color: 'var(--sky)' }}>每日小知识</p>
+                  <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--bark-soft)' }}>
+                    {dailyTip.content}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Recording Overlay (全屏覆盖) ── */}
+          {isListening && (
+            <div
+              className="fixed inset-0 z-50 flex flex-col fade-in"
+              style={{ maxWidth: '430px', margin: '0 auto', background: 'var(--parchment)' }}
+            >
+              {/* Top bar */}
+              <div className="px-5 pt-4 safe-top flex justify-between items-center">
+                <button
+                  onClick={handleCloseListening}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  style={{ background: 'rgba(61,43,31,0.06)', color: 'var(--bark-muted)' }}
+                >
+                  <Icons.x size={18} />
+                </button>
+                {/* 模式切换（小巧） */}
+                <div className="flex items-center gap-0.5 p-0.5 rounded-xl" style={{ background: 'rgba(61,43,31,0.04)' }}>
+                  {[
+                    { id: 'voice', icon: Icons.mic, label: '语音' },
+                    { id: 'photo', icon: Icons.camera, label: '拍照' },
+                    { id: 'video', icon: Icons.video, label: '视频' },
+                  ].map((mode) => {
+                    const MIcon = mode.icon;
+                    const isActive = inputMode === mode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        onClick={() => onInputModeChange(mode.id)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                          isActive ? 'text-honey-deep' : 'text-bark-muted'
+                        }`}
+                        style={{
+                          background: isActive ? 'var(--overlay)' : 'transparent',
+                          boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                          transitionDuration: 'var(--duration-fast)',
+                        }}
+                      >
+                        <MIcon size={12} />
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="w-9" />
+              </div>
+
+              {/* 录制内容区 */}
+              <div className="flex-1 overflow-y-auto">
+                {inputMode === 'voice' && (
+                  <div className="flex-1 flex flex-col items-center justify-center px-5 py-8" style={{ minHeight: 'calc(100vh - 200px)' }}>
+                    <div className="text-5xl mb-3 float">{currentPet.emoji}</div>
+                    <p
+                      className="text-sm font-semibold mb-10 transition-all text-center"
+                      style={{
+                        color: recordingState === 'recording'
+                          ? 'var(--coral)'
+                          : recordingState === 'translating'
+                          ? 'var(--sage)'
+                          : 'var(--bark-muted)',
+                        transitionDuration: 'var(--duration-normal)',
+                      }}
+                    >
+                      {recordingState === 'recording'
+                        ? '正在聆听...'
+                        : recordingState === 'translating'
+                        ? '正在翻译...'
+                        : `对${currentPet.name}说话，或录下它的声音`}
+                    </p>
+
+                    <div className="w-full mb-10">
+                      <WaveformVisualizer state={recordingState} />
+                    </div>
+
+                    <InputModeButton
+                      icon={Icons.mic}
+                      label={recordingState === 'recording' ? '停止' : '开始录音'}
+                      recording={recordingState === 'recording'}
+                      onClick={onRecord}
+                      primary
+                    />
+                  </div>
+                )}
+
+                {inputMode === 'photo' && (
+                  <PhotoMode currentPet={currentPet} onResult={() => {}} />
+                )}
+
+                {inputMode === 'video' && (
+                  <VideoMode currentPet={currentPet} onResult={() => {}} />
+                )}
+
+                {/* 翻译结果 */}
+                {showResult && inputMode === 'voice' && (
+                  <div className="pb-6 slide-up">
+                    <TranslationCard
+                      result={translationResult}
+                      onSave={() => {}}
+                      onShare={onShowShare}
+                      onFeedback={onFeedback}
+                    />
+                    <AILearningPrompt
+                      visible={showAIPrompt}
+                      onContribute={onAIContribute}
+                      onSkip={onAISkip}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom spacer */}
+          <div className="h-20" />
+        </div>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       PLACEHOLDER PAGES — Stubs for tabs 2-5
+       ═══════════════════════════════════════════════════════════════ */
+    function ProfilePage({ pets, selectedPet, onSelectPet, onAddPet }) {
+      const [editMode, setEditMode] = useState(false);
+
+      const petProfiles = {
+        0: {
+          understanding: { overall: 62, emotion: 72, voiceprint: 58, behavior: 45 },
+          personality: ["爱撒娇", "贪吃", "好奇心强", "胆小", "黏人", "夜猫子"],
+          timeline: {
+            today: [
+              { emotion: "想要关注", emoji: "🥺", translation: "你能过来陪我一下吗？", time: "15:24", confidence: 87, color: "#D4923A" },
+              { emotion: "开心", emoji: "😸", translation: "好开心看到你回来啦！", time: "12:10", confidence: 92, color: "#6B9E74" },
+              { emotion: "饥饿", emoji: "😾", translation: "饭碗空了，该吃饭了", time: "08:30", confidence: 88, color: "#D97755" },
+            ],
+            yesterday: [
+              { emotion: "放松", emoji: "😽", translation: "这里晒太阳真舒服", time: "14:20", confidence: 79, color: "#5B8FB9" },
+              { emotion: "好奇", emoji: "🙀", translation: "那是什么声音？", time: "09:15", confidence: 71, color: "#D4923A" },
+            ]
+          },
+          contribution: { labeled: 47, points: 235, rank: "Top 12%" }
+        },
+        1: {
+          understanding: { overall: 45, emotion: 52, voiceprint: 38, behavior: 35 },
+          personality: ["热情", "贪吃", "爱跑", "忠诚", "社交达人"],
+          timeline: {
+            today: [
+              { emotion: "兴奋", emoji: "🐕", translation: "出去玩出去玩！", time: "16:00", confidence: 85, color: "#D4923A" },
+              { emotion: "警惕", emoji: "🐶", translation: "有人来了！有人来了！", time: "11:30", confidence: 78, color: "#D97755" },
+            ],
+            yesterday: [
+              { emotion: "开心", emoji: "🐕", translation: "球球球！我要球！", time: "17:00", confidence: 90, color: "#6B9E74" },
+            ]
+          },
+          contribution: { labeled: 23, points: 115, rank: "Top 28%" }
+        }
+      };
+
+      const profile = petProfiles[selectedPet] || petProfiles[0];
+      const currentPetData = pets[selectedPet] || pets[0];
+
+      const MiniWaveform = ({ color }) => {
+        const heights = [4, 8, 12, 6, 10];
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 1.5, height: 12 }}>
+            {heights.map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 2.5,
+                  height: h,
+                  borderRadius: 2,
+                  backgroundColor: color,
+                  opacity: 0.8,
+                }}
+              />
+            ))}
+          </div>
+        );
+      };
+
+      const MetricBar = ({ label, value, color }) => (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--bark-soft)" }}>{label}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: color }}>{value}%</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, backgroundColor: "var(--fur-border)", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${value}%`,
+                borderRadius: 3,
+                backgroundColor: color,
+                transition: "width 0.6s ease",
+              }}
+            />
+          </div>
+        </div>
+      );
+
+      const TimelineEntry = ({ entry }) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 0",
+            borderBottom: "1px solid var(--fur-border)",
+          }}
+        >
+          <MiniWaveform color={entry.color} />
+          <span style={{ fontSize: 20 }}>{entry.emoji}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--bark)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {entry.translation}
+            </p>
+            <p style={{ fontSize: 11, color: "var(--bark-muted)", margin: "2px 0 0 0" }}>{entry.emotion}</p>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <p style={{ fontSize: 11, color: "var(--bark-muted)", margin: 0 }}>{entry.time}</p>
+            <span
+              style={{
+                display: "inline-block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "var(--sage)",
+                backgroundColor: "var(--sage-soft)",
+                borderRadius: 99,
+                padding: "1px 6px",
+                marginTop: 2,
+              }}
+            >
+              {entry.confidence}%
+            </span>
+          </div>
+        </div>
+      );
+
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "var(--parchment)",
+            paddingTop: 56,
+            paddingBottom: 96,
+            fontFamily: "Nunito, sans-serif",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 20px",
+              backgroundColor: "var(--parchment)",
+              borderBottom: "1px solid var(--fur-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <h1 style={{ fontSize: 18, fontWeight: 800, color: "var(--bark)", margin: 0 }}>宠物档案</h1>
+            <button
+              onClick={() => setEditMode(!editMode)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 6,
+                cursor: "pointer",
+                borderRadius: 8,
+                transition: "all 0.2s",
+                color: "var(--bark-soft)",
+              }}
+            >
+              <Icons.edit size={20} />
+            </button>
+          </div>
+
+          {/* Pet Carousel */}
+          <div
+            style={{
+              overflowX: "auto",
+              padding: "16px 20px",
+              display: "flex",
+              gap: 12,
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+            }}
+          >
+            {pets.map((pet, index) => (
+              <div
+                key={index}
+                onClick={() => onSelectPet(index)}
+                style={{
+                  flexShrink: 0,
+                  width: 280,
+                  height: 120,
+                  borderRadius: 20,
+                  backgroundColor: "var(--cream)",
+                  border: selectedPet === index ? "2.5px solid var(--honey)" : "2.5px solid transparent",
+                  boxShadow: selectedPet === index ? "0 0 20px var(--honey-soft)" : "var(--shadow-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 20px",
+                  gap: 16,
+                  cursor: "pointer",
+                  transition: "all 0.25s ease",
+                }}
+              >
+                <span style={{ fontSize: 48 }}>{pet.emoji}</span>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 800, color: "var(--bark)", margin: 0 }}>{pet.name}</p>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--bark-soft)",
+                      backgroundColor: "var(--fur-border)",
+                      borderRadius: 99,
+                      padding: "2px 8px",
+                      marginTop: 4,
+                    }}
+                  >
+                    {pet.breed}
+                  </span>
+                  <p style={{ fontSize: 12, color: "var(--bark-muted)", margin: "4px 0 0 0" }}>
+                    {pet.age} · {pet.gender}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div
+              onClick={onAddPet}
+              style={{
+                flexShrink: 0,
+                width: 280,
+                height: 120,
+                borderRadius: 20,
+                border: "2.5px dashed var(--bark-faint)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: "pointer",
+                transition: "all 0.25s ease",
+                backgroundColor: "transparent",
+              }}
+            >
+              <Icons.plus size={20} style={{ color: "var(--bark-faint)" }} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--bark-faint)" }}>添加宠物</span>
+            </div>
+          </div>
+
+          {/* Understanding Detail Section */}
+          <div style={{ padding: "8px 20px 20px" }}>
+            <div
+              style={{
+                backgroundColor: "var(--cream)",
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+                <ProgressRing
+                  value={profile.understanding.overall}
+                  size={160}
+                  strokeWidth={12}
+                  color="var(--honey)"
+                  trackColor="var(--honey-soft)"
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: 36, fontWeight: 800, color: "var(--bark)", margin: 0, lineHeight: 1 }}>
+                      {profile.understanding.overall}%
+                    </p>
+                    <p style={{ fontSize: 12, color: "var(--bark-muted)", margin: "4px 0 0 0" }}>理解程度</p>
+                  </div>
+                </ProgressRing>
+              </div>
+              <MetricBar label="情绪识别" value={profile.understanding.emotion} color="var(--honey)" />
+              <MetricBar label="声纹匹配" value={profile.understanding.voiceprint} color="var(--sage)" />
+              <MetricBar label="行为预测" value={profile.understanding.behavior} color="var(--sky)" />
+            </div>
+          </div>
+
+          {/* Personality Tags */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: "0 0 2px 0" }}>性格标签</h2>
+            <p style={{ fontSize: 12, color: "var(--bark-muted)", margin: "0 0 12px 0" }}>基于翻译数据分析</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {profile.personality.map((tag, i) => (
+                <span
+                  key={i}
+                  style={{
+                    display: "inline-block",
+                    backgroundColor: "var(--honey-soft)",
+                    color: "var(--honey-deep)",
+                    borderRadius: 99,
+                    padding: "6px 12px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Voice Timeline */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: 0 }}>声音时间线</h2>
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--honey)",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                全部 <Icons.chevronRight size={14} style={{ verticalAlign: "middle" }} />
+              </button>
+            </div>
+            <div
+              style={{
+                backgroundColor: "var(--cream)",
+                borderRadius: 20,
+                padding: "4px 16px",
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--bark-muted)", margin: "12px 0 4px 0" }}>今天</p>
+              {profile.timeline.today.map((entry, i) => (
+                <TimelineEntry key={`today-${i}`} entry={entry} />
+              ))}
+              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--bark-muted)", margin: "16px 0 4px 0" }}>昨天</p>
+              {profile.timeline.yesterday.map((entry, i) => (
+                <TimelineEntry key={`yesterday-${i}`} entry={entry} />
+              ))}
+            </div>
+          </div>
+
+          {/* Training Contribution */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <div
+              style={{
+                backgroundColor: "var(--honey-soft)",
+                borderRadius: 20,
+                padding: 20,
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: "0 0 12px 0" }}>训练贡献</h3>
+              <div style={{ display: "flex", justifyContent: "space-around", marginBottom: 16 }}>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: "var(--honey-deep)", margin: 0 }}>{profile.contribution.labeled}</p>
+                  <p style={{ fontSize: 11, color: "var(--bark-soft)", margin: "2px 0 0 0" }}>已标注</p>
+                </div>
+                <div style={{ width: 1, backgroundColor: "var(--bark-faint)", opacity: 0.4 }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: "var(--honey-deep)", margin: 0 }}>{profile.contribution.points}</p>
+                  <p style={{ fontSize: 11, color: "var(--bark-soft)", margin: "2px 0 0 0" }}>积分</p>
+                </div>
+                <div style={{ width: 1, backgroundColor: "var(--bark-faint)", opacity: 0.4 }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: "var(--honey-deep)", margin: 0 }}>{profile.contribution.rank}</p>
+                  <p style={{ fontSize: 11, color: "var(--bark-soft)", margin: "2px 0 0 0" }}>排名</p>
+                </div>
+              </div>
+              <button
+                style={{
+                  width: "100%",
+                  padding: "10px 0",
+                  borderRadius: 12,
+                  border: "none",
+                  backgroundColor: "var(--honey)",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "Nunito, sans-serif",
+                }}
+              >
+                继续贡献
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CollectionPage({ currentPet }) {
+      const [selectedEmotion, setSelectedEmotion] = useState(null);
+      const [taskStates, setTaskStates] = useState([false, false, true]);
+
+      const emotions = [
+        { id: 1, name: "开心", emoji: "😸", unlocked: true, count: 23, color: "#6B9E74" },
+        { id: 2, name: "饥饿", emoji: "😾", unlocked: true, count: 18, color: "#D97755" },
+        { id: 3, name: "撒娇", emoji: "🥺", unlocked: true, count: 15, color: "#D4923A" },
+        { id: 4, name: "好奇", emoji: "🙀", unlocked: true, count: 12, color: "#5B8FB9" },
+        { id: 5, name: "放松", emoji: "😽", unlocked: true, count: 9, color: "#5B8FB9" },
+        { id: 6, name: "警惕", emoji: "🙀", unlocked: true, count: 7, color: "#D97755" },
+        { id: 7, name: "不满", emoji: "😾", unlocked: true, count: 5, color: "#D97755" },
+        { id: 8, name: "想玩", emoji: "😸", unlocked: true, count: 3, color: "#6B9E74" },
+        { id: 9, name: "疼痛", emoji: "❓", unlocked: false, hint: "宠物受伤时可能出现" },
+        { id: 10, name: "孤独", emoji: "❓", unlocked: false, hint: "尝试离开房间一段时间" },
+        { id: 11, name: "恐惧", emoji: "❓", unlocked: false, hint: "雷雨天气时注意观察" },
+        { id: 12, name: "愤怒", emoji: "❓", unlocked: false, hint: "领地被侵犯时触发" },
+        { id: 13, name: "焦虑", emoji: "❓", unlocked: false, hint: "环境变化时留意" },
+        { id: 14, name: "信任", emoji: "❓", unlocked: false, hint: "持续互动建立信任" },
+        { id: 15, name: "兴奋", emoji: "❓", unlocked: false, hint: "游戏时间到！" },
+      ];
+
+      const achievements = [
+        { name: "初次翻译", icon: "🎤", achieved: true, desc: "完成第一次翻译" },
+        { name: "翻译达人", icon: "🏆", achieved: true, desc: "累计翻译100次", progress: "100/100" },
+        { name: "收藏家", icon: "📚", achieved: false, desc: "收集10种情绪", progress: "8/10" },
+        { name: "坚持不懈", icon: "🔥", achieved: false, desc: "连续打卡30天", progress: "7/30" },
+        { name: "社交达人", icon: "📤", achieved: false, desc: "分享20次", progress: "5/20" },
+        { name: "数据英雄", icon: "🧪", achieved: true, desc: "贡献50条标注" },
+      ];
+
+      const dailyTasks = [
+        { name: "录制一条声音", icon: "mic", reward: "+10积分", completed: false },
+        { name: "分享一次翻译", icon: "share", reward: "+10积分", completed: false },
+        { name: "纠正一次翻译", icon: "edit", reward: "+10积分", completed: true },
+      ];
+
+      const unlockedCount = emotions.filter((e) => e.unlocked).length;
+      const totalCount = emotions.length;
+
+      const weekDays = ["一", "二", "三", "四", "五", "六", "日"];
+      const checkedDays = [true, true, true, true, true, true, false];
+      const todayIndex = 6;
+
+      const handleEmotionClick = useCallback((emotion) => {
+        if (!emotion.unlocked) return;
+        setSelectedEmotion((prev) => (prev === emotion.id ? null : emotion.id));
+      }, []);
+
+      const TaskIcon = ({ iconName, size }) => {
+        const IconComponent = Icons[iconName];
+        return IconComponent ? <IconComponent size={size || 18} /> : null;
+      };
+
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "var(--parchment)",
+            paddingTop: 56,
+            paddingBottom: 96,
+            fontFamily: "Nunito, sans-serif",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 40,
+              padding: "12px 20px",
+              backgroundColor: "var(--parchment)",
+              borderBottom: "1px solid var(--fur-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <h1 style={{ fontSize: 18, fontWeight: 800, color: "var(--bark)", margin: 0 }}>声音图鉴</h1>
+            <p style={{ fontSize: 12, color: "var(--bark-muted)", margin: "2px 0 0 0" }}>
+              {currentPet.emoji} {currentPet.name} 的声音世界
+            </p>
+          </div>
+
+          {/* Collection Progress Ring */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 20px 8px" }}>
+            <ProgressRing
+              value={(unlockedCount / totalCount) * 100}
+              size={140}
+              strokeWidth={10}
+              color="var(--honey)"
+              trackColor="var(--honey-soft)"
+            >
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 32, fontWeight: 800, color: "var(--bark)", margin: 0, lineHeight: 1 }}>
+                  {unlockedCount}/{totalCount}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--bark-muted)", margin: "4px 0 0 0" }}>已收集</p>
+              </div>
+            </ProgressRing>
+            <p style={{ fontSize: 12, color: "var(--bark-muted)", marginTop: 12, textAlign: "center" }}>
+              距离下一个成就还需收集 2 种情绪
+            </p>
+          </div>
+
+          {/* Streak Section */}
+          <div style={{ padding: "12px 20px 20px" }}>
+            <div
+              style={{
+                backgroundColor: "var(--cream)",
+                borderRadius: 20,
+                padding: 20,
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <Icons.flame size={20} style={{ color: "var(--coral)" }} />
+                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--bark)" }}>连续 7 天</span>
+                <span style={{ fontSize: 13, color: "var(--bark-muted)" }}>继续保持！</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                {weekDays.map((day, i) => {
+                  const isChecked = checkedDays[i];
+                  const isToday = i === todayIndex;
+                  const isFuture = i > todayIndex;
+                  return (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 99,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: isChecked ? "var(--honey)" : "transparent",
+                          border: isToday && !isChecked
+                            ? "2px solid var(--honey)"
+                            : !isChecked && !isFuture
+                            ? "2px solid var(--bark-faint)"
+                            : isFuture
+                            ? "2px solid var(--bark-faint)"
+                            : "2px solid transparent",
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        {isChecked ? (
+                          <Icons.check size={16} style={{ color: "#fff" }} />
+                        ) : null}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: isChecked ? "var(--bark)" : "var(--bark-muted)",
+                        }}
+                      >
+                        {day}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Emotion Grid */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: "0 0 12px 0" }}>情绪图鉴</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {emotions.map((emotion) => (
+                <div key={emotion.id}>
+                  <div
+                    onClick={() => handleEmotionClick(emotion)}
+                    style={{
+                      aspectRatio: "1",
+                      borderRadius: 20,
+                      backgroundColor: emotion.unlocked ? "var(--cream)" : "rgba(61,43,31,0.05)",
+                      boxShadow: emotion.unlocked ? "var(--shadow-sm)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      cursor: emotion.unlocked ? "pointer" : "default",
+                      transition: "all 0.2s",
+                      border: selectedEmotion === emotion.id ? "2px solid var(--honey)" : "2px solid transparent",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {emotion.unlocked ? (
+                      <>
+                        <span style={{ fontSize: 32 }}>{emotion.emoji}</span>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--bark)", margin: 0 }}>{emotion.name}</p>
+                        <p style={{ fontSize: 10, color: "var(--bark-muted)", margin: 0 }}>发现 {emotion.count} 次</p>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 28, color: "var(--bark-faint)" }}>?</span>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--bark-faint)", margin: 0 }}>未解锁</p>
+                        <p style={{ fontSize: 10, color: "var(--bark-faint)", margin: 0, padding: "0 8px", textAlign: "center", lineHeight: 1.3 }}>
+                          {emotion.hint}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {/* Emotion Detail Expansion */}
+                  {selectedEmotion === emotion.id && emotion.unlocked && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        backgroundColor: "var(--cream)",
+                        borderRadius: 16,
+                        padding: 16,
+                        boxShadow: "var(--shadow-md)",
+                        animation: "slideDown 0.2s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--bark)", margin: "0 0 8px 0" }}>
+                            {emotion.emoji} {emotion.name}
+                          </p>
+                          <p style={{ fontSize: 11, color: "var(--bark-muted)", margin: "0 0 4px 0" }}>
+                            首次发现: 2025-01-{String(emotion.id + 5).padStart(2, "0")}
+                          </p>
+                          <p style={{ fontSize: 11, color: "var(--bark-muted)", margin: "0 0 4px 0" }}>
+                            最近发现: 2025-02-10
+                          </p>
+                          <p style={{ fontSize: 11, color: "var(--bark-muted)", margin: 0 }}>
+                            总计: {emotion.count} 次
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEmotion(null);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: 4,
+                            cursor: "pointer",
+                            color: "var(--bark-muted)",
+                          }}
+                        >
+                          <Icons.x size={16} />
+                        </button>
+                      </div>
+                      <button
+                        style={{
+                          marginTop: 10,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          width: "100%",
+                          padding: "8px 0",
+                          borderRadius: 10,
+                          border: "none",
+                          backgroundColor: emotion.color,
+                          color: "#fff",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                          fontFamily: "Nunito, sans-serif",
+                        }}
+                      >
+                        <Icons.play size={14} />
+                        播放声音
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Achievement Wall */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: "0 0 12px 0" }}>成就墙</h2>
+            <div
+              style={{
+                overflowX: "auto",
+                display: "flex",
+                gap: 16,
+                paddingBottom: 4,
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+              }}
+            >
+              {achievements.map((achievement, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flexShrink: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 6,
+                    width: 72,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 99,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: achievement.achieved
+                        ? "linear-gradient(135deg, var(--honey), var(--honey-glow))"
+                        : "rgba(61,43,31,0.05)",
+                      border: achievement.achieved ? "3px solid var(--honey-deep)" : "3px solid transparent",
+                      boxShadow: achievement.achieved ? "0 2px 8px rgba(212,146,58,0.3)" : "none",
+                      fontSize: 28,
+                    }}
+                  >
+                    {achievement.icon}
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: achievement.achieved ? "var(--bark)" : "var(--bark-muted)",
+                      margin: 0,
+                      textAlign: "center",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {achievement.name}
+                  </p>
+                  {!achievement.achieved && achievement.progress && (
+                    <span style={{ fontSize: 10, color: "var(--bark-faint)" }}>{achievement.progress}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Daily Tasks */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--bark)", margin: "0 0 12px 0" }}>每日任务</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {dailyTasks.map((task, i) => {
+                const IconComp = Icons[task.icon];
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      backgroundColor: "var(--cream)",
+                      borderRadius: 16,
+                      padding: "14px 16px",
+                      boxShadow: "var(--shadow-sm)",
+                      transition: "all 0.2s",
+                      opacity: task.completed ? 0.7 : 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: task.completed ? "var(--sage-soft)" : "var(--honey-soft)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {IconComp && (
+                        <IconComp
+                          size={18}
+                          style={{ color: task.completed ? "var(--sage)" : "var(--honey)" }}
+                        />
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "var(--bark)",
+                          margin: 0,
+                          textDecoration: task.completed ? "line-through" : "none",
+                        }}
+                      >
+                        {task.name}
+                      </p>
+                      <p style={{ fontSize: 11, color: "var(--honey-deep)", margin: "2px 0 0 0", fontWeight: 600 }}>
+                        {task.reward}
+                      </p>
+                    </div>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 99,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: task.completed ? "var(--sage)" : "transparent",
+                        border: task.completed ? "none" : "2px solid var(--bark-faint)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {task.completed && <Icons.check size={14} style={{ color: "#fff" }} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function HealthPage({ currentPet }) {
+      const [listeningEnabled, setListeningEnabled] = useState(true);
+      const healthScore = 85;
+
+      const scoreColor = healthScore >= 80 ? 'var(--sage)' : healthScore >= 60 ? 'var(--honey)' : 'var(--coral)';
+      const scoreLabel = healthScore >= 80 ? '良好' : healthScore >= 60 ? '注意' : '警告';
+      const scoreBadgeBg = healthScore >= 80 ? 'var(--sage-soft)' : healthScore >= 60 ? 'var(--honey-soft)' : 'var(--coral-soft)';
+
+      const alerts = [
+        {
+          type: 'warning',
+          color: 'var(--coral)',
+          bgColor: 'var(--coral-soft)',
+          title: '本周咳嗽频率 ↑40%',
+          desc: '较上周增加3次，建议关注',
+        },
+        {
+          type: 'notice',
+          color: 'var(--honey)',
+          bgColor: 'var(--honey-soft)',
+          title: '检测到2次异常呼吸',
+          desc: '发生在凌晨时段',
+        },
+      ];
+
+      const todayEvents = [
+        { time: '10:30', label: '咳嗽', count: 2, color: 'var(--coral)' },
+        { time: '09:15', label: '喷嚏', count: 1, color: 'var(--honey)' },
+        { time: '08:00', label: '正常叫声', count: 8, color: 'var(--sage)' },
+        { time: '—', label: '哀鸣', count: 0, color: 'var(--bark-faint)' },
+      ];
+
+      const trendData = {
+        labels: ['一', '二', '三', '四', '五', '六', '日'],
+        cough: [1, 0, 2, 1, 3, 2, 2],
+        sneeze: [0, 1, 0, 0, 1, 0, 1],
+        abnormal: [0, 0, 1, 0, 0, 1, 0],
+      };
+
+      const anxietyData = [30, 15, 45, 20, 25, 10, 35];
+      const anxietyDays = ['一', '二', '三', '四', '五', '六', '日'];
+      const maxAnxiety = Math.max(...anxietyData);
+
+      // SVG trend chart helpers
+      const chartW = 280;
+      const chartH = 120;
+      const chartPadL = 10;
+      const chartPadR = 10;
+      const chartPadT = 10;
+      const chartPadB = 25;
+      const plotW = chartW - chartPadL - chartPadR;
+      const plotH = chartH - chartPadT - chartPadB;
+      const allVals = [...trendData.cough, ...trendData.sneeze, ...trendData.abnormal];
+      const maxVal = Math.max(...allVals, 1);
+
+      const toX = (i) => chartPadL + (i / (trendData.labels.length - 1)) * plotW;
+      const toY = (v) => chartPadT + plotH - (v / maxVal) * plotH;
+
+      const makeLine = (data) =>
+        data.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+
+      const gridLines = [0, 1, 2, 3].map((i) => {
+        const y = chartPadT + (i / 3) * plotH;
+        return y;
+      });
+
+      return (
+        <div
+          className="min-h-screen pb-24 pt-14"
+          style={{ background: 'var(--parchment)', fontFamily: 'Nunito, sans-serif' }}
+        >
+          <div className="flex flex-col gap-6 px-5">
+            {/* Header */}
+            <div>
+              <h1 className="text-lg font-extrabold" style={{ color: 'var(--bark)' }}>
+                健康监测
+              </h1>
+              <p className="text-sm mt-0.5" style={{ color: 'var(--bark-soft)' }}>
+                {currentPet.emoji} {currentPet.name} 的健康状态
+              </p>
+            </div>
+
+            {/* Health Score Ring */}
+            <div className="flex flex-col items-center gap-3">
+              <ProgressRing value={healthScore} size={160} strokeWidth={8} color={scoreColor} trackColor="var(--fur-border)">
+                <div className="flex flex-col items-center">
+                  <span className="text-4xl font-extrabold" style={{ color: 'var(--bark)' }}>
+                    {healthScore}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--bark-muted)' }}>
+                    健康评分
+                  </span>
+                </div>
+              </ProgressRing>
+              <span
+                className="text-xs font-bold px-3 py-1 rounded-full"
+                style={{ background: scoreBadgeBg, color: scoreColor }}
+              >
+                {scoreLabel}
+              </span>
+            </div>
+
+            {/* Background Listening Toggle */}
+            <div
+              className="rounded-2xl p-4"
+              style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span style={{ color: 'var(--honey)' }}><Icons.mic size={16} /></span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--bark)' }}>
+                    7×24 后台监听
+                  </span>
+                </div>
+                <button
+                  className="relative rounded-full transition-all"
+                  style={{
+                    width: 48,
+                    height: 28,
+                    background: listeningEnabled ? 'var(--honey)' : 'rgba(61,43,31,0.1)',
+                    transition: 'background var(--duration-normal) var(--ease-out)',
+                  }}
+                  onClick={() => setListeningEnabled(!listeningEnabled)}
+                >
+                  <span
+                    className="absolute top-1 rounded-full bg-white transition-all"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      left: listeningEnabled ? 24 : 4,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                      transition: 'left var(--duration-normal) var(--ease-out)',
+                    }}
+                  />
+                </button>
+              </div>
+              <p className="text-xs mt-2" style={{ color: 'var(--bark-muted)' }}>
+                开启后在后台持续监测异常声音
+              </p>
+              <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--honey-deep)' }}>
+                <span><Icons.alertTriangle size={16} /></span>
+                预计额外消耗 5% 电量/天
+              </p>
+            </div>
+
+            {/* Anomaly Alert Cards */}
+            <div>
+              <h2 className="text-base font-bold mb-3" style={{ color: 'var(--bark)' }}>
+                异常提醒
+              </h2>
+              <div className="flex flex-col gap-3">
+                {alerts.map((alert, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl p-4"
+                    style={{
+                      background: 'var(--cream)',
+                      boxShadow: 'var(--shadow-sm)',
+                      borderLeft: `4px solid ${alert.color}`,
+                    }}
+                  >
+                    <p className="text-sm font-bold" style={{ color: 'var(--bark)' }}>
+                      {alert.title}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--bark-muted)' }}>
+                      {alert.desc}
+                    </p>
+                    <button
+                      className="text-xs font-semibold mt-2 transition-all active:scale-[0.98]"
+                      style={{ color: alert.color }}
+                    >
+                      查看详情 →
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Today's Sound Events */}
+            <div>
+              <h2 className="text-base font-bold mb-3" style={{ color: 'var(--bark)' }}>
+                今日声音事件
+              </h2>
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+              >
+                <div className="flex flex-col gap-3">
+                  {todayEvents.map((evt, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs w-10 text-right shrink-0" style={{ color: 'var(--bark-muted)' }}>
+                        {evt.count > 0 ? evt.time : '—'}
+                      </span>
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: evt.color }}
+                      />
+                      <span className="text-sm flex-1" style={{ color: evt.count > 0 ? 'var(--bark)' : 'var(--bark-muted)' }}>
+                        {evt.label}
+                      </span>
+                      <span
+                        className="text-sm font-semibold"
+                        style={{ color: evt.count > 0 ? 'var(--bark)' : 'var(--bark-muted)' }}
+                      >
+                        {evt.count > 0 ? `${evt.count}次` : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 7-Day Trend Chart */}
+            <div>
+              <h2 className="text-base font-bold mb-3" style={{ color: 'var(--bark)' }}>
+                7日趋势
+              </h2>
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+              >
+                <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" style={{ overflow: 'visible' }}>
+                  {/* Grid lines */}
+                  {gridLines.map((y, i) => (
+                    <line
+                      key={i}
+                      x1={chartPadL}
+                      y1={y}
+                      x2={chartW - chartPadR}
+                      y2={y}
+                      stroke="var(--fur-border)"
+                      strokeDasharray="4 3"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  {/* X-axis labels */}
+                  {trendData.labels.map((label, i) => (
+                    <text
+                      key={i}
+                      x={toX(i)}
+                      y={chartH - 4}
+                      textAnchor="middle"
+                      fill="var(--bark-muted)"
+                      fontSize={10}
+                      fontFamily="Nunito, sans-serif"
+                    >
+                      {label}
+                    </text>
+                  ))}
+                  {/* Cough line (coral) */}
+                  <polyline
+                    points={makeLine(trendData.cough)}
+                    fill="none"
+                    stroke="var(--coral)"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {trendData.cough.map((v, i) => (
+                    <circle key={i} cx={toX(i)} cy={toY(v)} r={3} fill="var(--coral)" />
+                  ))}
+                  {/* Sneeze line (honey) */}
+                  <polyline
+                    points={makeLine(trendData.sneeze)}
+                    fill="none"
+                    stroke="var(--honey)"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {trendData.sneeze.map((v, i) => (
+                    <circle key={i} cx={toX(i)} cy={toY(v)} r={3} fill="var(--honey)" />
+                  ))}
+                  {/* Abnormal line (sky) */}
+                  <polyline
+                    points={makeLine(trendData.abnormal)}
+                    fill="none"
+                    stroke="var(--sky)"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {trendData.abnormal.map((v, i) => (
+                    <circle key={i} cx={toX(i)} cy={toY(v)} r={3} fill="var(--sky)" />
+                  ))}
+                </svg>
+                {/* Legend */}
+                <div className="flex items-center justify-center gap-4 mt-3">
+                  {[
+                    { label: '咳嗽', color: 'var(--coral)' },
+                    { label: '喷嚏', color: 'var(--honey)' },
+                    { label: '异常叫声', color: 'var(--sky)' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ background: item.color }} />
+                      <span className="text-xs" style={{ color: 'var(--bark-muted)' }}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Separation Anxiety Report */}
+            <div>
+              <h2 className="text-base font-bold mb-1" style={{ color: 'var(--bark)' }}>
+                分离焦虑报告
+              </h2>
+              <p className="text-xs mb-3" style={{ color: 'var(--bark-muted)' }}>
+                主人离家时段分析
+              </p>
+              {/* 3 metric cards */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[
+                  { label: '平均时长', value: '23分钟', color: 'var(--sky)', bg: 'var(--sky-soft)' },
+                  { label: '最大强度', value: '中等', color: 'var(--honey)', bg: 'var(--honey-soft)' },
+                  { label: '本周频率', value: '3次', color: 'var(--coral)', bg: 'var(--coral-soft)' },
+                ].map((m, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl p-3 text-center"
+                    style={{ background: m.bg }}
+                  >
+                    <p className="text-xs" style={{ color: m.color }}>
+                      {m.label}
+                    </p>
+                    <p className="text-base font-bold mt-1" style={{ color: m.color }}>
+                      {m.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {/* Bar chart */}
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+              >
+                <div className="flex items-end justify-between gap-2" style={{ height: 80 }}>
+                  {anxietyData.map((val, i) => (
+                    <div key={i} className="flex flex-col items-center flex-1 gap-1">
+                      <div
+                        className="w-full rounded-t-md transition-all"
+                        style={{
+                          height: `${(val / maxAnxiety) * 60}px`,
+                          background: val >= 40 ? 'var(--coral)' : val >= 25 ? 'var(--honey)' : 'var(--sage)',
+                          minHeight: 4,
+                        }}
+                      />
+                      <span className="text-[10px]" style={{ color: 'var(--bark-muted)' }}>
+                        {anxietyDays[i]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Export Button */}
+            <button
+              className="w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              style={{ background: 'var(--honey)', boxShadow: 'var(--shadow-sm)' }}
+            >
+              <span><Icons.download size={16} /></span>
+              生成兽医报告
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function SettingsPage({ user, onLogout }) {
+      const [notifications, setNotifications] = useState({
+        healthAlert: true,
+        dailyCheckin: true,
+        translationFeedback: false,
+      });
+
+      const mockUser = user || { name: '小明', avatar: '👤' };
+
+      const pets = [
+        { emoji: '🐱', name: '小橘', breed: '橘猫' },
+        { emoji: '🐕', name: '旺财', breed: '金毛犬' },
+      ];
+
+      function SettingRow({ icon, label, value, toggle, toggleValue, onToggle, danger, onClick }) {
+        return (
+          <button
+            className="flex items-center w-full py-3 transition-all active:scale-[0.98]"
+            onClick={onClick || (toggle ? () => onToggle && onToggle(!toggleValue) : undefined)}
+            style={{ cursor: onClick || toggle ? 'pointer' : 'default' }}
+          >
+            <span className="text-base mr-3 shrink-0">{icon}</span>
+            <span
+              className="text-sm flex-1 text-left"
+              style={{ color: danger ? 'var(--coral)' : 'var(--bark)' }}
+            >
+              {label}
+            </span>
+            {toggle ? (
+              <div
+                className="relative rounded-full shrink-0"
+                style={{
+                  width: 48,
+                  height: 28,
+                  background: toggleValue ? 'var(--honey)' : 'rgba(61,43,31,0.1)',
+                  transition: 'background var(--duration-normal) var(--ease-out)',
+                }}
+              >
+                <span
+                  className="absolute top-1 rounded-full bg-white"
+                  style={{
+                    width: 20,
+                    height: 20,
+                    left: toggleValue ? 24 : 4,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                    transition: 'left var(--duration-normal) var(--ease-out)',
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                {value && (
+                  <span className="text-xs" style={{ color: 'var(--bark-muted)' }}>
+                    {value}
+                  </span>
+                )}
+                <span style={{ color: 'var(--bark-faint)' }}><Icons.chevronRight size={16} /></span>
+              </div>
+            )}
+          </button>
+        );
+      }
+
+      function SettingSection({ title, children }) {
+        const items = Array.isArray(children) ? children.filter(Boolean) : [children];
+        return (
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--bark-muted)' }}>
+              {title}
+            </h3>
+            <div
+              className="rounded-2xl px-4"
+              style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+            >
+              {items.map((child, i) => (
+                <div key={i}>
+                  {child}
+                  {i < items.length - 1 && (
+                    <div style={{ height: 1, background: 'var(--fur-border)' }} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          className="min-h-screen pb-24 pt-14"
+          style={{ background: 'var(--parchment)', fontFamily: 'Nunito, sans-serif' }}
+        >
+          <div className="flex flex-col gap-6 px-5">
+            {/* User Info */}
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center text-3xl"
+                style={{ background: 'var(--honey-soft)' }}
+              >
+                {mockUser.avatar}
+              </div>
+              <h1 className="text-lg font-bold" style={{ color: 'var(--bark)' }}>
+                {mockUser.name}
+              </h1>
+              <button className="text-sm font-semibold" style={{ color: 'var(--honey)' }}>
+                编辑资料
+              </button>
+            </div>
+
+            {/* Membership Card */}
+            <div
+              className="rounded-2xl p-5"
+              style={{
+                background: 'linear-gradient(135deg, var(--honey) 0%, var(--honey-deep) 100%)',
+                boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-white"><Icons.crown size={16} /></span>
+                <span className="text-white font-bold">免费版</span>
+              </div>
+              <p className="text-white/80 text-xs mb-3">
+                升级到专业版，解锁全部功能
+              </p>
+              <button
+                className="px-4 py-1.5 rounded-full text-xs font-semibold text-white transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(255,255,255,0.2)' }}
+              >
+                查看套餐 →
+              </button>
+            </div>
+
+            {/* My Pets */}
+            <div>
+              <h2 className="text-base font-bold mb-3" style={{ color: 'var(--bark)' }}>
+                我的宠物
+              </h2>
+              <div className="flex flex-col gap-2">
+                {pets.map((pet, i) => (
+                  <button
+                    key={i}
+                    className="flex items-center p-3 rounded-xl transition-all active:scale-[0.98]"
+                    style={{ background: 'var(--cream)', boxShadow: 'var(--shadow-sm)' }}
+                  >
+                    <span className="text-2xl mr-3">{pet.emoji}</span>
+                    <div className="flex-1 text-left">
+                      <span className="text-sm font-semibold" style={{ color: 'var(--bark)' }}>
+                        {pet.name}
+                      </span>
+                      <span className="text-xs ml-2" style={{ color: 'var(--bark-muted)' }}>
+                        {pet.breed}
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--bark-faint)' }}><Icons.chevronRight size={16} /></span>
+                  </button>
+                ))}
+                <button
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl transition-all active:scale-[0.98]"
+                  style={{
+                    background: 'var(--cream)',
+                    border: '1px dashed var(--bark-faint)',
+                  }}
+                >
+                  <span style={{ color: 'var(--honey)' }}><Icons.plus size={16} /></span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--honey)' }}>
+                    添加宠物
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Settings */}
+            <SettingSection title="通知管理">
+              <SettingRow
+                icon="🔔"
+                label="健康异常提醒"
+                toggle
+                toggleValue={notifications.healthAlert}
+                onToggle={(v) => setNotifications((s) => ({ ...s, healthAlert: v }))}
+              />
+              <SettingRow
+                icon="📅"
+                label="每日打卡提醒"
+                toggle
+                toggleValue={notifications.dailyCheckin}
+                onToggle={(v) => setNotifications((s) => ({ ...s, dailyCheckin: v }))}
+              />
+              <SettingRow
+                icon="💬"
+                label="翻译反馈通知"
+                toggle
+                toggleValue={notifications.translationFeedback}
+                onToggle={(v) => setNotifications((s) => ({ ...s, translationFeedback: v }))}
+              />
+            </SettingSection>
+
+            {/* Data & Privacy */}
+            <SettingSection title="数据与隐私">
+              <SettingRow
+                icon="🔬"
+                label="数据贡献"
+                value="已开启"
+                onClick={() => {}}
+              />
+              <SettingRow
+                icon="📦"
+                label="导出我的数据"
+                onClick={() => {}}
+              />
+              <SettingRow
+                icon="⚠️"
+                label="删除账号"
+                danger
+                onClick={() => {}}
+              />
+            </SettingSection>
+
+            {/* Other */}
+            <SettingSection title="其他">
+              <SettingRow
+                icon="🌐"
+                label="语言设置"
+                value="中文简体"
+                onClick={() => {}}
+              />
+              <SettingRow
+                icon="❓"
+                label="帮助与反馈"
+                onClick={() => {}}
+              />
+              <SettingRow
+                icon="ℹ️"
+                label="关于 PetVoice"
+                value="v1.0.0"
+                onClick={() => {}}
+              />
+            </SettingSection>
+
+            {/* Logout */}
+            <button
+              className="w-full py-3 text-center font-semibold transition-all active:scale-[0.98]"
+              style={{ color: 'var(--coral)' }}
+              onClick={onLogout}
+            >
+              退出登录
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function AddPetModal({ open, onClose, onSave }) {
+      const [form, setForm] = useState({
+        emoji: '🐱',
+        name: '',
+        breed: '',
+        age: '',
+        gender: '公',
+      });
+
+      const emojiOptions = ['🐱', '🐕', '🐰', '🐹', '🦜', '🐠'];
+
+      const handleSave = useCallback(() => {
+        if (form.name.trim()) {
+          onSave && onSave({ ...form, age: Number(form.age) || 0 });
+          setForm({ emoji: '🐱', name: '', breed: '', age: '', gender: '公' });
+        }
+      }, [form, onSave]);
+
+      return (
+        <BottomSheet open={open} onClose={onClose} title="添加宠物">
+          <div className="flex flex-col gap-4" style={{ fontFamily: 'Nunito, sans-serif' }}>
+            {/* Emoji selection */}
+            <div>
+              <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--bark-soft)' }}>
+                头像选择
+              </label>
+              <div className="flex gap-2">
+                {emojiOptions.map((emoji) => (
+                  <button
+                    key={emoji}
+                    className="w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all active:scale-[0.95]"
+                    style={{
+                      background: form.emoji === emoji ? 'var(--honey-soft)' : 'var(--parchment)',
+                      border: form.emoji === emoji ? '2px solid var(--honey)' : '2px solid transparent',
+                    }}
+                    onClick={() => setForm((f) => ({ ...f, emoji }))}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: 'var(--bark-soft)' }}>
+                名字
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="输入宠物名字"
+                className="w-full p-3 rounded-xl text-sm outline-none transition-all"
+                style={{
+                  background: 'var(--cream)',
+                  border: '1px solid var(--fur-border)',
+                  color: 'var(--bark)',
+                  fontFamily: 'Nunito, sans-serif',
+                }}
+              />
+            </div>
+
+            {/* Breed */}
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: 'var(--bark-soft)' }}>
+                品种
+              </label>
+              <input
+                type="text"
+                value={form.breed}
+                onChange={(e) => setForm((f) => ({ ...f, breed: e.target.value }))}
+                placeholder="输入品种"
+                className="w-full p-3 rounded-xl text-sm outline-none transition-all"
+                style={{
+                  background: 'var(--cream)',
+                  border: '1px solid var(--fur-border)',
+                  color: 'var(--bark)',
+                  fontFamily: 'Nunito, sans-serif',
+                }}
+              />
+            </div>
+
+            {/* Age */}
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: 'var(--bark-soft)' }}>
+                年龄
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={form.age}
+                  onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
+                  placeholder="0"
+                  className="flex-1 p-3 rounded-xl text-sm outline-none transition-all"
+                  style={{
+                    background: 'var(--cream)',
+                    border: '1px solid var(--fur-border)',
+                    color: 'var(--bark)',
+                    fontFamily: 'Nunito, sans-serif',
+                  }}
+                />
+                <span className="text-sm font-semibold" style={{ color: 'var(--bark-muted)' }}>
+                  岁
+                </span>
+              </div>
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: 'var(--bark-soft)' }}>
+                性别
+              </label>
+              <div className="flex gap-2">
+                {['公', '母'].map((g) => (
+                  <button
+                    key={g}
+                    className="flex-1 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-[0.98]"
+                    style={{
+                      background: form.gender === g ? 'var(--honey)' : 'var(--parchment)',
+                      color: form.gender === g ? '#fff' : 'var(--bark-muted)',
+                      border: form.gender === g ? 'none' : '1px solid var(--fur-border)',
+                    }}
+                    onClick={() => setForm((f) => ({ ...f, gender: g }))}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <button
+              className="w-full py-3 rounded-xl font-bold text-white transition-all active:scale-[0.98]"
+              style={{
+                background: form.name.trim() ? 'var(--honey)' : 'var(--bark-faint)',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: form.name.trim() ? 'pointer' : 'not-allowed',
+              }}
+              onClick={handleSave}
+              disabled={!form.name.trim()}
+            >
+              保存
+            </button>
+          </div>
+        </BottomSheet>
+      );
+    }
+
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       BOTTOM NAVIGATION — 5 tabs
+       ═══════════════════════════════════════════════════════════════ */
+    function BottomNav({ activeTab, onTabChange }) {
+      const tabs = [
+        { id: 'home', icon: Icons.home, label: '首页' },
+        { id: 'profile', icon: Icons.pawprint, label: '档案' },
+        { id: 'collection', icon: Icons.grid, label: '图鉴' },
+        { id: 'health', icon: Icons.activity, label: '健康' },
+        { id: 'settings', icon: Icons.user, label: '我的' },
+      ];
+
+      return (
+        <nav
+          className="fixed bottom-0 left-0 right-0 safe-bottom flex items-center justify-around px-2 pt-2"
+          style={{
+            background: 'var(--cream-elevated)',
+            borderTop: '1px solid var(--fur-border)',
+            maxWidth: '430px',
+            margin: '0 auto',
+          }}
+        >
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={`
+                  flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all active:scale-95
+                  ${isActive ? 'text-honey' : 'text-bark-muted hover:text-bark-soft'}
+                `}
+                style={{ transitionDuration: 'var(--duration-fast)', minWidth: '44px', minHeight: '44px' }}
+              >
+                <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
+                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{tab.label}</span>
+                {isActive && (
+                  <div className="w-1 h-1 rounded-full bg-honey" style={{ marginTop: '1px' }} />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      );
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       APP ROOT — State management & tab routing
+       ═══════════════════════════════════════════════════════════════ */
+    function App() {
+      // ── Core state ──
+      const [activeTab, setActiveTab] = useState('home');
+      const [selectedPet, setSelectedPet] = useState(0);
+      const [inputMode, setInputMode] = useState('voice');
+      const [recordingState, setRecordingState] = useState('idle');
+      const [showResult, setShowResult] = useState(false);
+
+      // ── Modal / sheet state ──
+      const [showShareSheet, setShowShareSheet] = useState(false);
+      const [showAIPrompt, setShowAIPrompt] = useState(false);
+      const [showAddPet, setShowAddPet] = useState(false);
+      const [aiPromptDismissed, setAIPromptDismissed] = useState(false);
+
+      // ── Toast state ──
+      const [toast, setToast] = useState({ visible: false, message: '', icon: '' });
+
+      // ── Mock data ──
+      const pets = [
+        { name: '豆豆', emoji: '🐱', type: 'cat', breed: '英短', age: 2, gender: 'female', understanding: 62 },
+        { name: '旺财', emoji: '🐕', type: 'dog', breed: '柴犬', age: 3, gender: 'male', understanding: 45 },
+      ];
+
+      const translationResult = {
+        emotion: '想要关注',
+        translation: '你能过来陪我一下吗？我已经等你好久了...',
+        confidence: 87,
+        emoji: '🥺',
+        color: '#D4923A',
+        colorEnd: '#E8A84C',
+        species: '喵叫 · 中频',
+        time: '下午 3:24',
+        context: '距上次进食 2h',
+      };
+
+      const recentResults = [
+        { emotion: '开心', translation: '好开心看到你回来啦！', confidence: 92, emoji: '😸', color: '#6B9E74', timeAgo: '1h前' },
+        { emotion: '饥饿', translation: '饭碗空了，该吃饭了', confidence: 88, emoji: '😾', color: '#D97755', timeAgo: '3h前' },
+        { emotion: '放松', translation: '嗯...这里晒太阳真舒服', confidence: 79, emoji: '😽', color: '#5B8FB9', timeAgo: '5h前' },
+      ];
+
+      // ── Show toast helper ──
+      const showToast = useCallback((message, icon) => {
+        setToast({ visible: true, message, icon });
+        setTimeout(() => setToast({ visible: false, message: '', icon: '' }), 2500);
+      }, []);
+
+      // ── Recording handler ──
+      const handleRecord = useCallback(() => {
+        if (recordingState === 'idle') {
+          setShowResult(false);
+          setShowAIPrompt(false);
+          setAIPromptDismissed(false);
+          setRecordingState('recording');
+          setTimeout(() => {
+            setRecordingState('translating');
+            setTimeout(() => {
+              setRecordingState('idle');
+              setShowResult(true);
+              // 30% chance to show AI learning prompt
+              if (!aiPromptDismissed && Math.random() < 0.3) {
+                setShowAIPrompt(true);
+              }
+            }, 1500);
+          }, 3000);
+        } else if (recordingState === 'recording') {
+          setRecordingState('translating');
+          setTimeout(() => {
+            setRecordingState('idle');
+            setShowResult(true);
+            if (!aiPromptDismissed && Math.random() < 0.3) {
+              setShowAIPrompt(true);
+            }
+          }, 1500);
+        }
+      }, [recordingState, aiPromptDismissed]);
+
+      // ── Feedback handler ──
+      const handleFeedback = useCallback((type, correction) => {
+        if (type === 'positive') {
+          showToast('感谢反馈！AI 学习中...', '✨');
+        }
+      }, [showToast]);
+
+      // ── AI prompt handlers ──
+      const handleAIContribute = useCallback(() => {
+        setShowAIPrompt(false);
+        setAIPromptDismissed(true);
+        showToast('感谢贡献！你帮助 AI 变得更聪明了', '🧠');
+      }, [showToast]);
+
+      const handleAISkip = useCallback(() => {
+        setShowAIPrompt(false);
+        setAIPromptDismissed(true);
+      }, []);
+
+      // ── Share handler ──
+      const handleShareSelect = useCallback((platform) => {
+        setShowShareSheet(false);
+        const names = { wechat: '微信好友', moments: '朋友圈', douyin: '抖音', save: '图片' };
+        showToast(`已分享到${names[platform] || platform}`, '🎉');
+      }, [showToast]);
+
+      // ── Tab routing ──
+      const renderPage = () => {
+        switch (activeTab) {
+          case 'home':
+            return (
+              <HomePage
+                pets={pets}
+                selectedPet={selectedPet}
+                onSelectPet={setSelectedPet}
+                inputMode={inputMode}
+                onInputModeChange={setInputMode}
+                recordingState={recordingState}
+                onRecord={handleRecord}
+                showResult={showResult}
+                translationResult={translationResult}
+                recentResults={recentResults}
+                onShowShare={() => setShowShareSheet(true)}
+                showAIPrompt={showAIPrompt}
+                onAIContribute={handleAIContribute}
+                onAISkip={handleAISkip}
+                onFeedback={handleFeedback}
+              />
+            );
+          case 'profile':
+            return (
+              <ProfilePage
+                pets={pets}
+                selectedPet={selectedPet}
+                onSelectPet={setSelectedPet}
+                onAddPet={() => setShowAddPet(true)}
+              />
+            );
+          case 'collection':
+            return <CollectionPage currentPet={pets[selectedPet]} />;
+          case 'health':
+            return <HealthPage currentPet={pets[selectedPet]} />;
+          case 'settings':
+            return <SettingsPage user={{ name: '小明', avatar: '👤' }} onLogout={() => showToast('已退出登录', '👋')} />;
+          default:
+            return null;
+        }
+      };
+
+      return (
+        <div className="min-h-screen max-w-[430px] mx-auto relative" style={{ background: 'var(--parchment)' }}>
+          {/* Page content */}
+          {renderPage()}
+
+          {/* Bottom Navigation */}
+          <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
+          {/* Share Sheet */}
+          <BottomSheet
+            open={showShareSheet}
+            onClose={() => setShowShareSheet(false)}
+            title="分享翻译结果"
+          >
+            <ShareSheetContent result={translationResult} onSelect={handleShareSelect} />
+          </BottomSheet>
+
+          {/* Add Pet Modal */}
+          <AddPetModal
+            open={showAddPet}
+            onClose={() => setShowAddPet(false)}
+            onSave={(pet) => { setShowAddPet(false); showToast('宠物添加成功！', '🎉'); }}
+          />
+
+          {/* Toast */}
+          <Toast message={toast.message} visible={toast.visible} icon={toast.icon} />
+        </div>
+      );
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOUNT
+       ═══════════════════════════════════════════════════════════════ */
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
