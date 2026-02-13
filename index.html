@@ -2380,6 +2380,24 @@
             { time: '12:10', emotion: '开心', emoji: '😸', note: '进食后表现愉悦' },
             { time: '08:30', emotion: '饥饿', emoji: '😾', note: '在饭碗旁徘徊' },
           ],
+          alerts: [
+            {
+              id: 1,
+              level: 'warning',
+              title: '夜间异常叫声增多',
+              time: '昨晚 02:30 - 03:15',
+              desc: '检测到连续45分钟的异常叫声，频率较平时高出3倍，可能伴有焦虑情绪。',
+              aiAdvice: '建议检查睡眠环境是否有异常声响或温度变化。若持续超过3天，建议就医排查疼痛或泌尿问题。可尝试在睡前增加15分钟互动时间缓解焦虑。',
+            },
+            {
+              id: 2,
+              level: 'caution',
+              title: '进食量下降',
+              time: '近3天趋势',
+              desc: '近3天进食量较上周平均减少约25%，但饮水量正常。',
+              aiAdvice: '短期食欲波动属正常现象，建议观察1-2天。可尝试更换口味或微微加热食物提升适口性。若伴有呕吐、腹泻或精神萎靡，请及时就医。',
+            },
+          ],
         },
         1: {
           scores: { diet: 85, exercise: 92, sleep: 78, mood: 88, weight: 80 },
@@ -2395,6 +2413,24 @@
             { time: '16:00', emotion: '兴奋', emoji: '🐕', note: '看到主人拿牵引绳' },
             { time: '11:30', emotion: '平静', emoji: '😌', note: '午睡中' },
             { time: '07:45', emotion: '开心', emoji: '😄', note: '早餐时摇尾巴' },
+          ],
+          alerts: [
+            {
+              id: 1,
+              level: 'info',
+              title: '运动量偏高',
+              time: '今日统计',
+              desc: '今日活跃时间已达4.5小时，超出日常平均水平40%。',
+              aiAdvice: '高运动量日注意补充饮水，观察是否有跛行或关节不适。建议明天适当减少运动量，让关节和肌肉得到恢复。',
+            },
+            {
+              id: 2,
+              level: 'caution',
+              title: '分离焦虑迹象',
+              time: '工作日 09:00-12:00',
+              desc: '主人外出期间检测到持续性呜咽和在门口徘徊行为，持续约2小时。',
+              aiAdvice: '建议逐步进行脱敏训练：短时间离开后回来给予奖励，逐步延长离开时间。外出前避免过度告别，可留下带有主人气味的衣物。',
+            },
           ],
         },
       };
@@ -2553,6 +2589,82 @@
                 </div>
               </div>
             </div>
+
+            {/* 异常通知 */}
+            {data.alerts && data.alerts.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold" style={{ color: 'var(--bark)' }}>
+                    异常通知
+                  </h2>
+                  <span
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                    style={{ background: 'var(--coral-soft)', color: 'var(--coral)' }}
+                  >
+                    {data.alerts.length} 条提醒
+                  </span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {data.alerts.map((alert) => {
+                    const levelConfig = {
+                      warning: { color: '#D97755', bg: 'rgba(217,119,85,0.08)', border: '#D97755', icon: '⚠️', label: '警告' },
+                      caution: { color: '#D4923A', bg: 'rgba(212,146,58,0.08)', border: '#D4923A', icon: '🔔', label: '注意' },
+                      info: { color: '#5B8FB9', bg: 'rgba(91,143,185,0.08)', border: '#5B8FB9', icon: '💡', label: '提示' },
+                    };
+                    const cfg = levelConfig[alert.level] || levelConfig.info;
+                    return (
+                      <div
+                        key={alert.id}
+                        className="rounded-2xl overflow-hidden"
+                        style={{ background: 'var(--cream-elevated)', boxShadow: 'var(--shadow-sm)' }}
+                      >
+                        {/* 异常信息 */}
+                        <div className="flex gap-3 p-4" style={{ borderLeft: `3.5px solid ${cfg.border}` }}>
+                          <span className="text-lg mt-0.5 shrink-0">{cfg.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-bold" style={{ color: 'var(--bark)' }}>
+                                {alert.title}
+                              </span>
+                              <span
+                                className="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                                style={{ background: cfg.bg, color: cfg.color }}
+                              >
+                                {cfg.label}
+                              </span>
+                            </div>
+                            <p className="text-[11px] mb-1.5" style={{ color: 'var(--bark-muted)' }}>
+                              {alert.time}
+                            </p>
+                            <p className="text-xs leading-relaxed" style={{ color: 'var(--bark-soft)' }}>
+                              {alert.desc}
+                            </p>
+                          </div>
+                        </div>
+                        {/* AI 建议 */}
+                        <div
+                          className="px-4 py-3 mx-3 mb-3 rounded-xl"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(91,143,185,0.06) 0%, rgba(107,158,116,0.06) 100%)',
+                            border: '1px solid rgba(91,143,185,0.1)',
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-xs">🤖</span>
+                            <span className="text-[10px] font-bold" style={{ color: 'var(--sky)' }}>
+                              AI 建议
+                            </span>
+                          </div>
+                          <p className="text-xs leading-relaxed" style={{ color: 'var(--bark-soft)' }}>
+                            {alert.aiAdvice}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 情绪分析 */}
             <div>
