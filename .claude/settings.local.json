@@ -1,14 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "taskmaster",
     "github",
     "filesystem",
     "memory"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(git add:*)"
-    ]
-  }
+  ]
 }
